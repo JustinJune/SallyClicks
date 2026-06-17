@@ -1,0 +1,11 @@
+# Sally Clicks! — Python dependencies
+# macOS only. Install with: pip install -r requirements.txt
+
+# Native macOS input injection and recording (replaces pynput for injection)
+pyobjc-framework-Quartz>=9.0
+
+# macOS Accessibility API (password field detection, system UI queries)
+pyobjc-framework-ApplicationServices>=9.0
+
+# Global input listening (hotkeys, recording fallback listener)
+pynput>=1.7.6
