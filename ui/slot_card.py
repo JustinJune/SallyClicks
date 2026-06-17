@@ -285,14 +285,15 @@ class SlotCard(tk.Frame):
     # ── File I/O ───────────────────────────────────────────────────────────────
 
     def save(self):
-        events_to_save = self._original_events if self._original_events is not None else self.engine.events
-        if not events_to_save:
+        if not self.engine.events:
             return
             
         fp = filedialog.asksaveasfilename(
-            parent=self.master_app.root,
-            defaultextension=".json", filetypes=[("JSON", "*.json")],
-            initialfile=config.DEFAULT_SAVE_FILE,
+            parent= self,
+            title = "Save Macro",
+            defaultextension=".json",
+            filetypes=[("JSON Macro", "*.json")],
+            initialfile=f"{self.get_name().replace(' ', '_')}.json",
         )
         if not fp:
             return
@@ -302,7 +303,8 @@ class SlotCard(tk.Frame):
         # If the user closed the window using the 'X' button, abort the save
         if is_secure is None:
             return
-
+        
+        events_to_save = self.get_events()
         # Execute Save
         if persistence.save_macro(fp, events_to_save, is_secure=is_secure):
             status_text = "Saved (Locked) 🔒" if is_secure else "Saved ✓"

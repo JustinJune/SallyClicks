@@ -1,5 +1,6 @@
 # ui/app.py
 import platform
+import sys
 import tkinter as tk
 from tkinter import messagebox
 from utils import persistence
@@ -11,6 +12,7 @@ from ui.stitch_dialog import open_stitch_dialog
 from ui.hotkey_manager import open_hotkey_manager
 from ui.slot_card import filedialog
 from ui.security_dialog import ask_security_lock
+
 
 
 class AppGUI:
@@ -36,21 +38,21 @@ class AppGUI:
 
         self.root.bind_all("<Button-1>", self._on_global_click, add="+")
 
-    # ── Observer / notification ───────────────────────────────────────────────
+    # --- Observer / notification ---
 
     def notify_change(self):
         for cb in self._observers:
             try:
                 cb()
-            except Exception:
-                pass
+            except Exception as e:
+                 print(f"[Sally Clicks] Observer error: {e}", file=sys.stderr)
 
     def _on_global_click(self, event):
         if event.widget and not isinstance(event.widget, tk.Entry):
             if isinstance(self.root.focus_get(), tk.Entry):
                 self.root.focus_set()
 
-    # ── Hotkey binding ────────────────────────────────────────────────────────
+    # --- Hotkey binding ---
 
     def start_binding(self, action_tuple, btn_widget):
         if self.input_manager.binding_action is not None:
@@ -143,8 +145,8 @@ class AppGUI:
             try:
                 if slot.engine.is_playing:   slot.stop()
                 if slot.engine.is_recording: slot.toggle_record()
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[Sally Clicks] Error stopping slot: {e}", file=sys.stderr)
 
     # ── Chrome (toolbar + card canvas) ───────────────────────────────────────
 
@@ -272,6 +274,7 @@ class AppGUI:
         self._return_label(lbl)
         self.notify_change()
 
+    # --- Save and loading session ---
     def _save_session(self):
         fp = filedialog.asksaveasfilename(
             parent=self.root,
@@ -327,26 +330,25 @@ class AppGUI:
         if not fp:
             return
 
-        from utils import persistence
         session_data, err = persistence.load_session(fp)
 
         if err:
             messagebox.showerror("Load Failed", err, parent=self.root)
             return
 
-        # ── 1. Wipe the current board ──
+        # --- Wipe the current board ---
         for slot in list(self.slots):
             slot.engine.stop_playback()
             slot.destroy()
         self.slots.clear()
         self._label_pool = list(config.SLOT_LABELS)
 
-        # ── 2. Restore Global State ──
+        # --- Restore Global State ---
         loaded_global = session_data.get("global_stop", [])
         if loaded_global or not self.hk_global_stop:
             self.hk_global_stop = frozenset(loaded_global)
 
-        # ── 3. Rebuild Slots ──
+        # --- Rebuild Slots ---
         for s_data in session_data.get("slots", []):
             slot = self._add_slot(custom_label=s_data.get("label"))
             if not slot: 

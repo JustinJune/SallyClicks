@@ -1,17 +1,13 @@
 # utils/persistence.py
 #
-# File format (saved by Sally Clicks):
-#   {
-#     "events": [ ... ],
-#     "hmac":   "<hex digest>"
-#   }
-#
-# The HMAC is SHA-256 keyed with a machine-specific secret derived from the
-# macOS hardware UUID. This means:
-#   - Files you save on your machine load fine
-#   - A file someone else crafted (or hand-edited) will fail the HMAC check
-#     and be refused, preventing tampered macros from running
-#
+# Two file types:
+#   Individual macro  (.json) — portable, app-level SHA-256 checksum
+#   Session workspace (.json) — portable (checksum) OR machine-locked (Fernet AES)
+# Portability choice:
+#   Individual macros are always portable — checksum uses a fixed app salt.
+#   Sessions can be saved as portable OR machine-locked (user's choice via
+#   the security_dialog). Machine-locked sessions are Fernet-encrypted with a
+#   key derived from the Mac's hardware UUID and cannot be opened on another machine.
 import hashlib
 import hmac as _hmac
 import json
@@ -21,14 +17,15 @@ import sys
 import tkinter as tk
 import base64
 from cryptography.fernet import Fernet
+from dataclasses import dataclass
 
-# ── Machine-bound HMAC key ────────────────────────────────────────────────────
+# --- App level key for individual macros ---
+# Not really for security, just a check to see if it was tampered with
+# after saving it from the app itself
+_PORTABLE_SALT = "sally-clicks-v1:"
 
+# --- Machine-bound HMAC key ---
 def _machine_key() -> bytes:
-    """
-    Derive a stable, machine-specific 32-byte key from the macOS hardware UUID.
-    Falls back to a fixed salt if the UUID can't be read (shouldn't happen on macOS).
-    """
     try:
         result = subprocess.run(
             ["ioreg", "-rd1", "-c", "IOPlatformExpertDevice"],
@@ -38,25 +35,28 @@ def _machine_key() -> bytes:
             if "IOPlatformUUID" in line:
                 uuid = line.split('"')[-2]
                 return hashlib.sha256(f"sally-clicks:{uuid}".encode()).digest()
-    except Exception:
-        pass
-    # Fallback — still better than nothing
+    except Exception as e:
+        print(f"[Sally Clicks] Could not read hardware UUID: {e}", file=sys.stderr)
+    # Fallback — better than nothing
     return hashlib.sha256(b"sally-clicks:fallback-key-mac").digest()
 
 
-_KEY = _machine_key()
-_FERNET_KEY = base64.urlsafe_b64encode(_KEY)
+_MACHINE_KEY = _machine_key()
+_FERNET_KEY = base64.urlsafe_b64encode(_MACHINE_KEY)
 _cipher = Fernet(_FERNET_KEY)
 
+# --- HMAC for locked sessions___
 def _compute_hmac(events_json: str) -> str:
-    return _hmac.new(_KEY, events_json.encode("utf-8"), hashlib.sha256).hexdigest()
+    return _hmac.new(_MACHINE_KEY, events_json.encode("utf-8"), hashlib.sha256).hexdigest()
 
+# --- Checksum for portability ---
+def _canonical_json(obj) -> str:
+    return json.dumps(obj, separators=(",", ":"), sort_keys=True)
 
-def _compute_hmac(events_json: str) -> str:
-    return _hmac.new(_KEY, events_json.encode("utf-8"), hashlib.sha256).hexdigest()
+def _checksum(json_str: str) -> str:
+    return hashlib.sha256((_PORTABLE_SALT + json_str).encode()).hexdigest()
 
-
-# ── Screen bounds ─────────────────────────────────────────────────────────────
+# --- Screen bounds ---
 
 def _screen_size() -> tuple[int, int]:
     try:
@@ -70,7 +70,7 @@ def _screen_size() -> tuple[int, int]:
 
 _SCREEN_W, _SCREEN_H = _screen_size()
 
-# ── Security constants ────────────────────────────────────────────────────────
+# --- Security constants ---
 
 VALID_TYPES   = {"click", "click_down", "click_up", "key", "key_down", "key_up"}
 VALID_BUTTONS = {"Button.left", "Button.right", "Button.middle"}
@@ -80,8 +80,15 @@ MAX_DURATION  = 60.0   # seconds
 # Keys that warrant a warning when found in an *imported* (external) macro
 MODIFIER_KEYS = {"cmd", "command", "ctrl", "control", "cg:55", "cg:59"}
 
+# --- Load result dataclass
+@dataclass
+class LoadResult:
+    events:        list
+    error:         str | None = None
+    is_legacy:     bool       = False
+    has_modifiers: bool       = False
 
-# ── Validation ────────────────────────────────────────────────────────────────
+# --- Validation ---
 
 class ValidationError(Exception):
     pass
@@ -149,9 +156,8 @@ def validate_events(events) -> list[dict]:
         raise ValidationError(f"Expected a list, got {type(events).__name__}")
     return [_validate_event(ev, i) for i, ev in enumerate(events)]
 
-
+# Return True if any event uses a system modifier key
 def contains_modifier_keys(events: list[dict]) -> bool:
-    """Return True if any event uses a system modifier key."""
     for ev in events:
         key = str(ev.get("key", "")).lower()
         if key in MODIFIER_KEYS:
@@ -159,21 +165,26 @@ def contains_modifier_keys(events: list[dict]) -> bool:
     return False
 
 
-# ── Serialise ─────────────────────────────────────────────────────────────────
+# --- Convert recorded events into JSON safe format ---
 
 def serialize_events(events: list) -> list:
     clean = []
+    # Process individual events and create copy to work on
     for event in events:
         ev = event.copy()
         t  = ev.get("type", "")
-
+        # Convert button objects to strings
         if t in ("click", "click_down", "click_up"):
             ev["button"] = str(ev.get("button", "Button.left"))
+        # Convert key objects to strings
         elif t in ("key", "key_down", "key_up"):
             key = ev.get("key", "")
+            # if not string do not convert
             if not isinstance(key, str):
+                # Special keys (enter, esc, etc..)
                 if hasattr(key, "name") and key.name:
                     ev["key"] = f"Key.{key.name}"
+                # Character keys (a, b, 1, 2...)
                 elif hasattr(key, "char") and key.char:
                     ev["key"] = key.char
                 else:
@@ -184,16 +195,26 @@ def serialize_events(events: list) -> list:
     return clean
 
 
-# ── Public API ────────────────────────────────────────────────────────────────
-
-def save_macro(filename: str, events: list) -> bool:
-    """Save events to a signed JSON file. Returns True on success."""
+# --- Save events to a signed JSON file. Returns True on success ---
+# is_secure=True  → Fernet-encrypted, machine-locked, HMAC-signed
+# is_secure=False → plain JSON, portable, checksum-signed
+def save_macro(filename: str, events: list, is_secure: bool =False) -> bool:
     try:
         serialized  = serialize_events(events)
-        events_json = json.dumps(serialized, indent=4)
+        events_json = _canonical_json(serialized)
+
+        if is_secure:
+            events_data_field = _cipher.encrypt(events_json.encode()).decode()
+            sig = _compute_hmac(events_json) # HMAC with machine key
+        else:
+            events_data_field = serialized
+            sig = _checksum(events_json)  # portable checksum
+
         payload = {
-            "events": serialized,
-            "hmac":   _compute_hmac(events_json),
+            "version": 2,
+            "is_locked": is_secure,
+            "events": events_data_field,
+            "sig": sig,
         }
         with open(filename, "w") as f:
             json.dump(payload, f, indent=4)
@@ -202,67 +223,66 @@ def save_macro(filename: str, events: list) -> bool:
         print(f"Save error: {e}", file=sys.stderr)
         return False
 
-
-def load_macro(filename: str) -> tuple[list, str | None]:
-    """
-    Load and verify a macro file.
-
-    Returns (events, None) on success.
-    Returns ([], error_string) on any failure — caller shows this to the user.
-    """
+# --- Load and verify macro file ---
+# Return (events, None) on success
+# Return ([], error_string) on any failure])
+# Caller shows error to user
+def load_macro(filename: str) -> LoadResult:
     if not os.path.exists(filename):
-        return [], f"File not found: {filename}"
+       return LoadResult(events=[], error=f"File not found: {filename}")
 
     try:
         with open(filename, "r") as f:
             payload = json.load(f)
+    
     except json.JSONDecodeError as e:
-        return [], f"Invalid JSON: {e}"
+        return LoadResult(events=[], error=f"Invalid JSON: {e}")
     except Exception as e:
-        return [], f"Could not read file: {e}"
+        return LoadResult(events=[], error=f"Could not read file: {e}")
+    is_legacy = False
 
-    # ── Detect format ─────────────────────────────────────────────────────────
+    # --- Detect format ---
     if isinstance(payload, list):
         raw_events = payload
-        hmac_status = "legacy"
+        is_legacy = True
+
     elif isinstance(payload, dict) and "events" in payload:
-        raw_events   = payload["events"]
-        stored_hmac  = payload.get("hmac", "")
+        is_locked  = payload.get("is_locked", False)
+        stored_sig = payload.get("sig", payload.get("checksum", ""))
 
-        events_json    = json.dumps(raw_events, indent=4)
-        expected_hmac  = _compute_hmac(events_json)
 
-        if not stored_hmac:
-            hmac_status = "missing"
-        elif not _hmac.compare_digest(stored_hmac, expected_hmac):
-            return [], (
-                "Security check failed: this file has been modified outside of "
-                "Sally Clicks and cannot be loaded.\n\n"
-                "If you edited it intentionally, re-save it from within the app."
-            )
+        if not stored_sig:
+            is_legacy = True
+            raw_events = payload["events"]
         else:
-            hmac_status = "ok"
-    else:
-        return [], "Unrecognised file format."
+            try: 
+                if is_locked:
+                    decrypted    = _cipher.decrypt(payload["events"].encode())
+                    events_json  = decrypted.decode()
+                    raw_events   = json.loads(events_json)
+                else:
+                    raw_events   = payload["events"]
+                    events_json  = _canonical_json(raw_events)
+            except Exception:
+                return LoadResult(events=[], error="Decryption failed. This macro is securely locked to a different Mac.")
 
-    # ── Validate events ───────────────────────────────────────────────────────
+            expected_sig = _compute_hmac(events_json) if is_locked else _checksum(events_json)
+            if not stored_sig or stored_sig != expected_sig:
+                return LoadResult(events=[], error="Integrity check failed: this file has been modified.")
+    else:
+        return LoadResult(events=[], error="Unrecognised file format.")
+
     try:
         events = validate_events(raw_events)
     except ValidationError as e:
-        return [], str(e)
+        return LoadResult(events=[], error=str(e))
 
-    if hmac_status == "legacy":
-        for ev in events:
-            ev["_legacy_file"] = True
+    return LoadResult(events=events, is_legacy=is_legacy, has_modifiers=contains_modifier_keys(events))
 
-    return events, None
-
-
-# ── Global Workspace API ──────────────────────────────────────────────────────
-
+# --- Session save/load ---
+# Save the entire workspace state (multiple slots + hotkeys) to a signed JSON file.
+# If is_secure is True, the entire session is heavily encrypted.
 def save_session(filename: str, session_data: dict, is_secure: bool = False) -> bool:
-    """Save the entire workspace state (multiple slots + hotkeys) to a signed JSON file.
-    If is_secure is True, the entire session is heavily encrypted."""
     try:
         # Clean and serialize the events inside every slot
         clean_session = {
@@ -277,21 +297,23 @@ def save_session(filename: str, session_data: dict, is_secure: bool = False) -> 
             clean_slot["events"] = serialize_events(s.get("events", []))
             clean_session["slots"].append(clean_slot)
 
-        session_json = json.dumps(clean_session, indent=4)
+        session_json = _canonical_json(clean_session)
         
         if is_secure:
             # Encrypt the raw JSON string
-            payload_data = _cipher.encrypt(session_json.encode("utf-8")).decode("utf-8")
+            session_data_field = _cipher.encrypt(session_json.encode()).decode()
+            sig = _compute_hmac(session_json)     
         else:
             # Keep as plain dict for portability
-            payload_data = clean_session
+            session_data_field = clean_session
+            sig = _checksum(session_json) 
 
         # Wrap it with our HMAC signature to prevent tampering
         payload = {
             "version": 2,
             "is_locked": is_secure,
-            "session_data": payload_data,
-            "hmac": _compute_hmac(session_json),
+            "session_data": session_data_field,
+            "sig": sig,
         }
         
         with open(filename, "w") as f:
@@ -302,17 +324,15 @@ def save_session(filename: str, session_data: dict, is_secure: bool = False) -> 
         print(f"Save session error: {e}", file=sys.stderr)
         return False
 
-
+#  Load, decrypt (if needed), and verify a full workspace session file.
 def load_session(filename: str) -> tuple[dict | None, str | None]:
-    """Load, decrypt (if needed), and verify a full workspace session file."""
     if not os.path.exists(filename):
         return None, f"File not found: {filename}"
 
     try:
         with open(filename, "r") as f:
             payload = json.load(f)
-    except json.JSONDecodeError as e:
-        return None, f"Invalid JSON: {e}"
+
     except Exception as e:
         return None, f"Could not read file: {e}"
 
@@ -320,26 +340,26 @@ def load_session(filename: str) -> tuple[dict | None, str | None]:
         return None, "Unrecognised file format. This is not a valid Sally Clicks session."
 
     is_locked   = payload.get("is_locked", False)
-    stored_hmac = payload.get("hmac", "")
+    stored_sig = payload.get("sig", "")
 
-    # 1. Decrypt if locked
+    # Decrypt or extract
     try:
         if is_locked:
-            decrypted_bytes = _cipher.decrypt(payload["session_data"].encode("utf-8"))
-            session_json = decrypted_bytes.decode("utf-8")
+            decrypted = _cipher.decrypt(payload["session_data"].encode("utf-8"))
+            session_json = decrypted.decode("utf-8")
             raw_session = json.loads(session_json)
         else:
             raw_session = payload["session_data"]
-            session_json = json.dumps(raw_session, indent=4)
+            session_json = _canonical_json(raw_session)
     except Exception:
-        return None, "Decryption failed. This session is securely locked to a different Mac."
+        return None, "Decryption failed. This session is securely locked to a different Mac and cannot be opened."
 
-    # 2. Verify Integrity
-    expected_hmac = _compute_hmac(session_json)
-    if not stored_hmac or not _hmac.compare_digest(stored_hmac, expected_hmac):
+    # Verify Integrity
+    expected_sig = _compute_hmac(session_json) if is_locked else _checksum(session_json)
+    if not stored_sig or stored_sig != expected_sig:
         return None, "Integrity check failed: this session file has been altered."
 
-    # 3. Validate Events for every slot
+    # Validate Events for every slot
     try:
         for s in raw_session.get("slots", []):
             s["events"] = validate_events(s.get("events", []))
