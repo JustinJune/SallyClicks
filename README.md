@@ -71,7 +71,7 @@ Ensure your virtual environment is activated, then run:
 ```bash
 pip install pyinstaller
 pyinstaller --windowed --noconfirm --name "Sally Clicks" main.py
-
+```
 ---
 
 ## Accessibility Permission
