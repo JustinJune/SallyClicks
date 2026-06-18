@@ -1,4 +1,7 @@
 # ui/hotkey_manager.py
+# Open the hotkey manager window.
+#`app` is the AppGUI instance.
+
 import tkinter as tk
 
 import config
@@ -6,10 +9,6 @@ from ui.widgets import FlatBtn
 
 
 def open_hotkey_manager(app):
-    """
-    Open the hotkey manager window.
-    `app` is the AppGUI instance.
-    """
     win = tk.Toplevel(app.root)
     win.title("Global Hotkey Manager")
     x = app.root.winfo_rootx() + app.root.winfo_width() + 10
@@ -19,7 +18,7 @@ def open_hotkey_manager(app):
     win.attributes("-topmost", True)
     win.focus_force()
 
-    # ── Global stop row ───────────────────────────────────────────────────────
+    # --- Global stop row ---
     tk.Label(win, text="Bind keys for each macro:",
              font=config.UI_FONT_BOLD, bg=config.COLOR_BG,
              fg=config.COLOR_TEXT).pack(pady=10)
@@ -45,7 +44,7 @@ def open_hotkey_manager(app):
     g_btn.cmd = lambda: app.start_binding(("__global__", "stop"), g_btn)
     g_btn.pack(side="left", fill="x", expand=True)
 
-    # ── Per-slot rows ─────────────────────────────────────────────────────────
+    # --- Per-slot rows ---
     container = tk.Frame(win, bg=config.COLOR_BG)
     container.pack(fill="both", expand=True, padx=10)
 

@@ -1,16 +1,14 @@
 # ui/security_dialog.py
+# Shows a custom dialog asking the user if they want to securely lock the macro.
+# Returns:
+#   True  -> Yes, Lock It
+#   False -> No, Keep Portable
+#   None  -> Cancelled / Window closed
 import tkinter as tk
 import config
 from ui.widgets import FlatBtn
 
 def ask_security_lock(parent) -> bool | None:
-    """
-    Shows a custom dialog asking the user if they want to securely lock the macro.
-    Returns:
-        True  -> Yes, Lock It
-        False -> No, Keep Portable
-        None  -> Cancelled / Window closed
-    """
     dlg = tk.Toplevel(parent)
     dlg.title("")
     dlg.configure(bg=config.COLOR_PANEL)
