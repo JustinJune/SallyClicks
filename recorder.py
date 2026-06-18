@@ -54,8 +54,7 @@ class MacroEngine:
         self._rl_thread = None
         self._run_loop  = None
 
-    # ── Recording ─────────────────────────────────────────────────────────────
-
+    # Recording Logic
     def start_recording(self) -> None:
         self.events       = []
         self._held_keys   = set()
@@ -78,7 +77,7 @@ class MacroEngine:
                 if self.events.pop()["type"] == "click_down":
                     break
 
-    # ── Quartz tap ────────────────────────────────────────────────────────────
+    # Quartz tap 
 
     def _quartz_callback(self, proxy, event_type, event, refcon):
         if not self.is_recording:
@@ -161,7 +160,7 @@ class MacroEngine:
             logger.error(f"Error stopping event tap: {e}", exc_info=True)
         self._tap = self._rl_source = self._run_loop = None
 
-    # ── Playback ──────────────────────────────────────────────────────────────
+    # Playback Logic
 
     def play_macro(
         self,

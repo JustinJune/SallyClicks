@@ -3,7 +3,7 @@ import tkinter as tk
 import config
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# --- Helpers ---
 
 def fmt_ms(seconds: float) -> str:
     return f"{int(seconds * 1000)} ms"
@@ -18,7 +18,7 @@ def event_label(ev: dict) -> str:
     return f"⌨ {ev.get('key','?')}  {fmt_ms(ev.get('duration', 0))}"
 
 
-# ── FlatBtn ───────────────────────────────────────────────────────────────────
+# --- FlatBtn ---
 
 class FlatBtn(tk.Frame):
     """Borderless button — avoids macOS black-border and dimming artifacts."""

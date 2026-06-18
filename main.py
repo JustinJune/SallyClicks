@@ -1,4 +1,4 @@
-# main.py — Sally Clicks! entry point
+# main.py — Sally Clicks! 
 import platform
 import signal
 import sys
@@ -6,10 +6,10 @@ import tkinter as tk
 from tkinter import messagebox
 
 from ui.app import AppGUI
-import input_handler   # for release_all() in signal handler
+import input_handler   
 
 
-# ── Signal handler: release all inputs on crash / SIGTERM / Ctrl-C ────────────
+# --- Signal handler: release all inputs on crash / SIGTERM / Ctrl-C ---
 
 def _emergency_release(signum, frame):
     """
@@ -25,15 +25,14 @@ def _emergency_release(signum, frame):
 
 signal.signal(signal.SIGTERM, _emergency_release)
 signal.signal(signal.SIGINT,  _emergency_release)
-# SIGHUP fires when the terminal is closed (macOS/Linux only)
+# SIGHUP fires when the terminal is closed
 if hasattr(signal, "SIGHUP"):
     signal.signal(signal.SIGHUP, _emergency_release)
 
 
-# ── macOS helpers ─────────────────────────────────────────────────────────────
-
+# --- macOS helpers ---
+# Ask macOS for high-priority execution so it won't throttle timers.
 def _prevent_app_nap():
-    """Ask macOS for high-priority execution so it won't throttle timers."""
     if platform.system() == "Darwin":
         try:
             from Foundation import NSProcessInfo
@@ -43,9 +42,8 @@ def _prevent_app_nap():
         except ImportError:
             pass
 
-
+# Warn if macOS Accessibility permission is missing.
 def _check_accessibility(root: tk.Tk):
-    """Warn if macOS Accessibility permission is missing."""
     if platform.system() != "Darwin":
         return
     import subprocess
@@ -68,7 +66,7 @@ def _check_accessibility(root: tk.Tk):
         pass
 
 
-# ── Entry point ───────────────────────────────────────────────────────────────
+# Entry point 
 
 if __name__ == "__main__":
     root = tk.Tk()
