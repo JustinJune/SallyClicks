@@ -1,23 +1,22 @@
 # ui/input_manager.py
+# Single pynput listener pair that:
+# routes key/mouse events to whichever SlotCard is currently recording
+# fires hotkey checks on the main thread via root.after()
+# handles key-binding capture mode
+#. monitors Escape hold for emergency kill (UI-thread-independent)
+
 import time
 import threading
 from pynput import mouse, keyboard
 import input_handler  # for release_all()
 
-# ── Escape-hatch constants ────────────────────────────────────────────────────
+# --- Escape-hatch constants ---
 # Hold Escape for this many seconds to trigger an emergency stop.
-# Runs entirely in the listener thread — does NOT need the UI thread to respond.
+# Runs entirely in the listener thread 
 _ESCAPE_HOLD_SECS = 2.0
 
 
 class GlobalInputManager:
-    """
-    Single pynput listener pair that:
-    - routes key/mouse events to whichever SlotCard is currently recording
-    - fires hotkey checks on the main thread via root.after()
-    - handles key-binding capture mode
-    - monitors Escape hold for emergency kill (UI-thread-independent)
-    """
 
     def __init__(self, app):
         self.app                = app
@@ -26,7 +25,7 @@ class GlobalInputManager:
         self.active_bind_btn    = None
         self.current_bind_combo = set()
 
-        # Escape-hatch state — tracked purely in the listener thread
+        # Escape-hatch state (tracked in the listener thread)
         self._esc_press_time: float | None = None
         self._esc_timer: threading.Timer | None = None
 
@@ -37,7 +36,7 @@ class GlobalInputManager:
         self.k_listener.start()
         self.m_listener.start()
 
-    # ── Helpers ───────────────────────────────────────────────────────────────
+    # --- Helpers ---
 
     def _key_str(self, key) -> str:
         if hasattr(key, "char") and key.char:
@@ -49,7 +48,8 @@ class GlobalInputManager:
     def _is_escape(self, k: str) -> bool:
         return k in ("esc", "escape")
 
-    # ── Emergency kill — runs in listener thread, no UI dependency ────────────
+    # --- Emergency kill ---
+    #  runs in listener thread, no UI dependency
 
     def _arm_escape_hatch(self):
         """Start the 2-second hold timer for Escape."""
@@ -71,10 +71,10 @@ class GlobalInputManager:
         Runs in a Timer thread — safe to call release_all() directly,
         and schedules a UI reset via after() for anything UI-related.
         """
-        # 1. Release all physical inputs immediately (no UI thread needed)
+        # Release all physical inputs immediately 
         input_handler.release_all()
 
-        # 2. Stop every engine's playback flag (thread-safe: just sets a bool)
+        # Stop every engine's playback flag 
         for slot in self.app.slots:
             try:
                 slot.engine.is_playing  = False
@@ -82,7 +82,7 @@ class GlobalInputManager:
             except Exception:
                 pass
 
-        # 3. Ask the UI thread to reset button states
+        # Ask the UI thread to reset button states
         try:
             self.app.root.after(0, self._ui_reset_after_escape)
         except Exception:
@@ -97,13 +97,13 @@ class GlobalInputManager:
             except Exception:
                 pass
 
-    # ── Key events ────────────────────────────────────────────────────────────
+    # --- Key events ---
 
     def on_press(self, key):
         k = self._key_str(key)
         self.held_keys.add(k)
 
-        # Escape hatch: arm on first press (not repeat)
+        # Escape hatch: arm on first press 
         if self._is_escape(k) and self._esc_press_time is None:
             self._arm_escape_hatch()
 
