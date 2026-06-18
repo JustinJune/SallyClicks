@@ -67,31 +67,31 @@ class SlotCard(tk.Frame):
         self.timeline.pack(fill="x", padx=8, pady=(8, 2))
 
         # Status
-        sf = tk.Frame(self, bg=P, highlightthickness=0, bd=0)
-        sf.pack(fill="x", padx=10, pady=(4, 0))
-        self._dot = tk.Label(sf, text="●", fg=config.COLOR_MUTED, bg=P, font=("Arial", 12))
+        self.status_frame = tk.Frame(self, bg=P, highlightthickness=0, bd=0)
+        self.status_frame.pack(fill="x", padx=10, pady=(4, 0))
+        self._dot = tk.Label(self.status_frame, text="●", fg=config.COLOR_MUTED, bg=P, font=("Arial", 12))
         self._dot.pack(side="left")
         self._status_var = tk.StringVar(value="Ready")
         tk.Label(
-            sf, textvariable=self._status_var,
+            self.status_frame, textvariable=self._status_var,
             font=("Arial", 11, "bold"), fg=config.COLOR_TEXT_MED, bg=P, anchor="w",
         ).pack(side="left", padx=(4, 0))
 
         # Controls
-        ctrl = tk.Frame(self, bg=P, highlightthickness=0, bd=0)
-        ctrl.pack(fill="x", padx=8, pady=(4, 4))
-        self.btn_rec  = FlatBtn(ctrl, text="● Rec",  font=("Arial", 11, "bold"), fg=config.COLOR_RED,   bg=B, active_bg=config.COLOR_BORDER, cmd=self.toggle_record, pad_x=10, pad_y=6)
-        self.btn_play = FlatBtn(ctrl, text="▶ Play", font=("Arial", 11, "bold"), fg=config.COLOR_GREEN, bg=B, active_bg=config.COLOR_BORDER, cmd=self.play,          pad_x=10, pad_y=6)
-        self.btn_stop = FlatBtn(ctrl, text="■",      font=("Arial", 11, "bold"), fg=config.COLOR_MUTED, bg=B, active_bg=config.COLOR_BORDER, cmd=self.stop,          pad_x=10, pad_y=6, disabled=True)
+        self.control_frame = tk.Frame(self, bg=P, highlightthickness=0, bd=0)
+        self.control_frame.pack(fill="x", padx=8, pady=(4, 4))
+        self.btn_rec  = FlatBtn(self.control_frame, text="● Rec",  font=("Arial", 11, "bold"), fg=config.COLOR_RED,   bg=B, active_bg=config.COLOR_BORDER, cmd=self.toggle_record, pad_x=10, pad_y=6)
+        self.btn_play = FlatBtn(self.control_frame, text="▶ Play", font=("Arial", 11, "bold"), fg=config.COLOR_GREEN, bg=B, active_bg=config.COLOR_BORDER, cmd=self.play,          pad_x=10, pad_y=6)
+        self.btn_stop = FlatBtn(self.control_frame, text="■",      font=("Arial", 11, "bold"), fg=config.COLOR_MUTED, bg=B, active_bg=config.COLOR_BORDER, cmd=self.stop,          pad_x=10, pad_y=6, disabled=True)
         for b in (self.btn_rec, self.btn_play, self.btn_stop):
             b.pack(side="left", padx=2)
 
         # Loop + Speed
-        lf = tk.Frame(self, bg=P, highlightthickness=0, bd=0)
-        lf.pack(fill="x", padx=8, pady=(6, 10))
+        self.loop_frame = tk.Frame(self, bg=P, highlightthickness=0, bd=0)
+        self.loop_frame.pack(fill="x", padx=8, pady=(6, 10))
 
         tk.Checkbutton(
-            lf, text="∞", variable=self._inf_var,
+            self.loop_frame, text="∞", variable=self._inf_var,
             font=("Arial", 16, "bold"), fg=config.COLOR_TEXT_MED, bg=P,
             selectcolor=config.COLOR_ACCENT_LT, activebackground=P,
             activeforeground=config.COLOR_TEXT, command=self._toggle_inf,
@@ -99,31 +99,33 @@ class SlotCard(tk.Frame):
 
         vcmd = (self.register(lambda v: v.isdigit() or v == ""), "%P")
         self._loop_entry = tk.Entry(
-            lf, textvariable=self._loop_var, width=3, font=("Arial", 14),
+            self.loop_frame, textvariable=self._loop_var, width=3, font=("Arial", 14),
             bg=B, fg=config.COLOR_TEXT, insertbackground=config.COLOR_TEXT,
             disabledbackground=config.COLOR_PANEL_HDR, disabledforeground=config.COLOR_MUTED,
             relief="flat", highlightthickness=0, bd=0,
             validate="key", validatecommand=vcmd,
         )
         self._loop_entry.pack(side="left", padx=(0, 4), ipady=2)
-        tk.Label(lf, text="times", font=("Arial", 11), fg=config.COLOR_MUTED, bg=P).pack(side="left")
+        tk.Label(self.loop_frame, text="times", font=("Arial", 11), fg=config.COLOR_MUTED, bg=P).pack(side="left")
 
-        tk.Frame(lf, bg=P).pack(side="left", fill="x", expand=True)  # spring spacer
+        tk.Frame(self.loop_frame, bg=P).pack(side="left", fill="x", expand=True)  # spring spacer
 
         speed_opts = ["0.5x", "1.0x", "1.5x", "2.0x", "4.0x", "8.0x"]
-        om = tk.OptionMenu(lf, self._speed_var, *speed_opts)
+        om = tk.OptionMenu(self.loop_frame, self._speed_var, *speed_opts)
+        self.divider = tk.Frame(self, bg=config.COLOR_BORDER, height=1, highlightthickness=0, bd=0)
+        self.divider.pack(fill="x", padx=8, pady=4)
         om.config(font=("Arial", 12), bg=B, fg=config.COLOR_TEXT, highlightthickness=0, bd=0)
         om.pack(side="left", padx=(0, 6))
-        tk.Label(lf, text="Speed", font=("Arial", 11), fg=config.COLOR_MUTED, bg=P).pack(side="left", padx=(0, 4))
+        tk.Label(self.loop_frame, text="Speed", font=("Arial", 11), fg=config.COLOR_MUTED, bg=P).pack(side="left", padx=(0, 4))
 
         tk.Frame(self, bg=config.COLOR_BORDER, height=1, highlightthickness=0, bd=0).pack(fill="x", padx=8, pady=4)
 
         # Footer
-        ff = tk.Frame(self, bg=P, highlightthickness=0, bd=0)
-        ff.pack(fill="x", padx=8, pady=(0, 8))
-        FlatBtn(ff, text="💾 Save", font=("Arial", 10), fg=config.COLOR_TEXT_MED, bg=B, active_bg=config.COLOR_BORDER, cmd=self.save,         pad_x=8, pad_y=4).pack(side="left", padx=(0, 4))
-        FlatBtn(ff, text="📂 Load", font=("Arial", 10), fg=config.COLOR_TEXT_MED, bg=B, active_bg=config.COLOR_BORDER, cmd=self.load,         pad_x=8, pad_y=4).pack(side="left", padx=(0, 4))
-        self._btn_log = FlatBtn(ff, text="Events ▸",   font=("Arial", 10, "bold"), fg=config.COLOR_ACCENT, bg=B, active_bg=config.COLOR_BORDER, cmd=self._toggle_log, pad_x=8, pad_y=4)
+        self.footer_frame = tk.Frame(self, bg=P, highlightthickness=0, bd=0)
+        self.footer_frame.pack(fill="x", padx=8, pady=(0, 8))
+        FlatBtn(self.footer_frame, text="💾 Save", font=("Arial", 10), fg=config.COLOR_TEXT_MED, bg=B, active_bg=config.COLOR_BORDER, cmd=self.save,         pad_x=8, pad_y=4).pack(side="left", padx=(0, 4))
+        FlatBtn(self.footer_frame, text="📂 Load", font=("Arial", 10), fg=config.COLOR_TEXT_MED, bg=B, active_bg=config.COLOR_BORDER, cmd=self.load,         pad_x=8, pad_y=4).pack(side="left", padx=(0, 4))
+        self._btn_log = FlatBtn(self.footer_frame, text="Events ▸",   font=("Arial", 10, "bold"), fg=config.COLOR_ACCENT, bg=B, active_bg=config.COLOR_BORDER, cmd=self._toggle_log, pad_x=8, pad_y=4)
         self._btn_log.pack(side="right")
 
         # Hidden event log
@@ -359,3 +361,29 @@ class SlotCard(tk.Frame):
         self._refresh_list()
         self._set_status(f"{len(result.events)} events", config.COLOR_ACCENT)
         self.master_app.notify_change()
+
+    # Compact Mode setup
+    def set_compact_mode(self, is_compact: bool):
+        if is_compact:
+            # Hide the bulky parts
+            self.timeline.pack_forget()
+            self.loop_frame.pack_forget()
+            self.divider.pack_forget()
+            self.footer_frame.pack_forget()
+            if self._log_open:
+                self._log_frame.pack_forget()
+        else:
+            # Briefly hide the visible frames so we can reset the order
+            self.status_frame.pack_forget()
+            self.control_frame.pack_forget()
+
+            # Pack everything back the same
+            self.timeline.pack(fill="x", padx=8, pady=(8, 2))
+            self.status_frame.pack(fill="x", padx=10, pady=(4, 0))
+            self.control_frame.pack(fill="x", padx=8, pady=(4, 4))
+            self.loop_frame.pack(fill="x", padx=8, pady=(6, 10))
+            self.divider.pack(fill="x", padx=8, pady=4)
+            self.footer_frame.pack(fill="x", padx=8, pady=(0, 8))
+            
+            if self._log_open:
+                self._log_frame.pack(fill="both", expand=True, padx=8, pady=(0, 6))

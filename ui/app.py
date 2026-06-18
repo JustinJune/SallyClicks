@@ -19,6 +19,7 @@ from utils import logger
 class AppGUI:
     MAX_SLOTS = 8
 
+    #Set up intial variables for the GUI
     def __init__(self, root: tk.Tk):
         self.root = root
         self.root.title(config.WINDOW_TITLE)
@@ -26,6 +27,8 @@ class AppGUI:
         self.root.attributes("-topmost", True)
         self.root.resizable(True, True)
         self.root.geometry(f"{config.WINDOW_W}x{config.WINDOW_H}")
+        # Add Compact Features
+        self.is_compact = False
 
         self.slots:        list[SlotCard] = []
         self._label_pool:  list[str]      = list(config.SLOT_LABELS)
@@ -195,6 +198,14 @@ class AppGUI:
                 bg=config.COLOR_ACCENT, active_bg="#1D4ED8",
                 cmd=self._add_slot,
                 ).pack(side="right", padx=(0, 8))
+        self.btn_compact = FlatBtn(
+            toolbar, text="↕ Compact",
+            font=config.UI_FONT, fg=config.COLOR_TEXT_MED,
+            bg=config.COLOR_BG, active_bg=config.COLOR_BORDER,
+            cmd=self.toggle_compact_mode,
+        )
+        self.btn_compact.pack(side="right", padx=(8, 0))
+
 
         # Card scroll area
         outer = tk.Frame(self.root, bg=B, highlightthickness=0, bd=0)
@@ -377,4 +388,15 @@ class AppGUI:
 
         self.notify_change()
         messagebox.showinfo("Success", "Workspace fully restored!", parent=self.root)
+
+    def toggle_compact_mode(self):
+        self.is_compact = not self.is_compact
+        if self.is_compact:
+            self.btn_compact.update_style(text="⇕ Expand", fg=config.COLOR_ACCENT)
+        else:
+            self.btn_compact.update_style(text="↕ Compact", fg=config.COLOR_TEXT_MED)
+        for slot in self.slots:
+            if hasattr(slot, 'set_compact_mode'):
+                slot.set_compact_mode(self.is_compact)
+
     
