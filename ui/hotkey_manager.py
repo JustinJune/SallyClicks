@@ -19,7 +19,7 @@ def open_hotkey_manager(app):
     win.focus_force()
 
     # --- Global stop row ---
-    tk.Label(win, text="Bind keys for each macro:",
+    tk.Label(win, text="Bind keys for each macro - Del to unbound - Esc to leave as is:",
              font=config.UI_FONT_BOLD, bg=config.COLOR_BG,
              fg=config.COLOR_TEXT).pack(pady=10)
 

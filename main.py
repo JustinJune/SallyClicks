@@ -1,4 +1,5 @@
 # main.py — Sally Clicks! 
+#!/usr/bin/env python
 import platform
 import signal
 import sys

@@ -110,6 +110,16 @@ class GlobalInputManager:
         # Binding capture mode
         if self.binding_action:
             if self._is_escape(k):
+                original = getattr(self, "original_combo", frozenset())
+                self.app.root.after(
+                    0, self.app.finish_binding, self.binding_action, original
+                )
+                self.binding_action     = None
+                self.current_bind_combo = set()
+                self.held_keys.clear()
+                return
+            
+            if k in ("backspace", "delete"):
                 self.app.root.after(
                     0, self.app.finish_binding, self.binding_action, frozenset()
                 )
@@ -164,3 +174,13 @@ class GlobalInputManager:
         for slot in self.app.slots:
             if slot.engine.is_recording:
                 slot.engine.on_click(x, y, button, pressed)
+
+    #  Explicitly kill the pynput listeners 
+    def shutdown(self):
+        try:
+            self.k_listener.stop()
+            self.m_listener.stop()
+            if self._esc_timer:
+                self._esc_timer.cancel()
+        except Exception:
+            pass

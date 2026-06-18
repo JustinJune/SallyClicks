@@ -22,6 +22,7 @@ class AppGUI:
     #Set up intial variables for the GUI
     def __init__(self, root: tk.Tk):
         self.root = root
+        self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
         self.root.title(config.WINDOW_TITLE)
         self.root.configure(bg=config.COLOR_BG)
         self.root.attributes("-topmost", True)
@@ -68,6 +69,12 @@ class AppGUI:
         self.input_manager.active_bind_btn    = btn_widget
         self.input_manager.current_bind_combo = set()
         self.input_manager.held_keys.clear()
+        slot, action = action_tuple
+        # Save original hotkey combo
+        if slot == "__global__":
+            self.input_manager.original_combo = self.hk_global_stop
+        else:
+            self.input_manager.original_combo = getattr(slot, f"hk_{action}")
 
     def update_bind_ui(self, slot, action, combo_str):
         if self.input_manager.active_bind_btn:
@@ -398,5 +405,9 @@ class AppGUI:
         for slot in self.slots:
             if hasattr(slot, 'set_compact_mode'):
                 slot.set_compact_mode(self.is_compact)
-
+    # Clean up background threads before destroying the UI
+    def _on_closing(self):
+        self.input_manager.shutdown()
+        self.root.destroy()
+        sys.exit(0)
     
