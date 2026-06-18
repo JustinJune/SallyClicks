@@ -18,7 +18,7 @@ import tkinter as tk
 import base64
 from cryptography.fernet import Fernet
 from dataclasses import dataclass
-from utils.logger import logger
+from utils import logger
 
 # --- App level key for individual macros ---
 # Not really for security, just a check to see if it was tampered with

@@ -3,7 +3,7 @@ import sys
 import time
 import threading
 import input_handler
-from utils.logger import logger
+from utils import logger
 
 MIN_DELAY = 0.001  # 1 ms minimum between events — prevents injection storms
 

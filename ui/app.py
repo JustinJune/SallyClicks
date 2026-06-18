@@ -12,7 +12,7 @@ from ui.stitch_dialog import open_stitch_dialog
 from ui.hotkey_manager import open_hotkey_manager
 from ui.slot_card import filedialog
 from ui.security_dialog import ask_security_lock
-from utils.logger import logger
+from utils import logger
 
 
 

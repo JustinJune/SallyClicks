@@ -1,7 +1,7 @@
 # input_handler.py — macOS only (Quartz CGEvents)
 import sys
 import time
-from utils.logger import logger
+from utils import logger
 import Quartz
 from Quartz import (
     CGEventCreateMouseEvent, CGEventCreateKeyboardEvent,
