@@ -23,6 +23,7 @@ CGEventTap API for zero-drift playback and true OS-level input injection.
 - **Stitch** — drag and drop any combination of slots to chain them into a single macro
 - **Session save / load** — save your entire workspace (all slots, hotkeys, and settings)
   and restore it in one click
+- **Compact form** - Make your window even smaller by only keeping rec/play/stop features + macro name
 
 ### Session Portability
 
@@ -128,6 +129,7 @@ sally-clicks/
 ├── requirements.txt
 ├── utils/
 │   └── persistence.py     # Validation, checksum/HMAC, save and load
+|   └── logger.py.         # Keep a log when in app form
 └── ui/
     ├── app.py             # Window chrome, slot management, session I/O
     ├── slot_card.py       # Per-macro card widget
