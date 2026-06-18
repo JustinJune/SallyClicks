@@ -38,12 +38,12 @@ class SlotCard(tk.Frame):
         self._build()
         self.propagate(False)
 
-    # ── Build ──────────────────────────────────────────────────────────────────
+    # --- Build ---
 
     def _build(self):
         P, H, B = config.COLOR_PANEL, config.COLOR_PANEL_HDR, config.COLOR_BG
 
-        # 1. Header
+        # Header
         hdr = tk.Frame(self, bg=H, height=38, highlightthickness=0, bd=0)
         hdr.pack(fill="x")
         hdr.pack_propagate(False)
@@ -62,11 +62,11 @@ class SlotCard(tk.Frame):
             cmd=self._on_remove, pad_x=10, pad_y=4,
         ).pack(side="right")
 
-        # 2. Timeline
+        # Timeline
         self.timeline = MiniTimeline(self)
         self.timeline.pack(fill="x", padx=8, pady=(8, 2))
 
-        # 3. Status
+        # Status
         sf = tk.Frame(self, bg=P, highlightthickness=0, bd=0)
         sf.pack(fill="x", padx=10, pady=(4, 0))
         self._dot = tk.Label(sf, text="●", fg=config.COLOR_MUTED, bg=P, font=("Arial", 12))
@@ -77,7 +77,7 @@ class SlotCard(tk.Frame):
             font=("Arial", 11, "bold"), fg=config.COLOR_TEXT_MED, bg=P, anchor="w",
         ).pack(side="left", padx=(4, 0))
 
-        # 4. Controls
+        # Controls
         ctrl = tk.Frame(self, bg=P, highlightthickness=0, bd=0)
         ctrl.pack(fill="x", padx=8, pady=(4, 4))
         self.btn_rec  = FlatBtn(ctrl, text="● Rec",  font=("Arial", 11, "bold"), fg=config.COLOR_RED,   bg=B, active_bg=config.COLOR_BORDER, cmd=self.toggle_record, pad_x=10, pad_y=6)
@@ -86,7 +86,7 @@ class SlotCard(tk.Frame):
         for b in (self.btn_rec, self.btn_play, self.btn_stop):
             b.pack(side="left", padx=2)
 
-        # 5. Loop + Speed
+        # Loop + Speed
         lf = tk.Frame(self, bg=P, highlightthickness=0, bd=0)
         lf.pack(fill="x", padx=8, pady=(6, 10))
 
@@ -118,7 +118,7 @@ class SlotCard(tk.Frame):
 
         tk.Frame(self, bg=config.COLOR_BORDER, height=1, highlightthickness=0, bd=0).pack(fill="x", padx=8, pady=4)
 
-        # 6. Footer
+        # Footer
         ff = tk.Frame(self, bg=P, highlightthickness=0, bd=0)
         ff.pack(fill="x", padx=8, pady=(0, 8))
         FlatBtn(ff, text="💾 Save", font=("Arial", 10), fg=config.COLOR_TEXT_MED, bg=B, active_bg=config.COLOR_BORDER, cmd=self.save,         pad_x=8, pad_y=4).pack(side="left", padx=(0, 4))
@@ -126,7 +126,7 @@ class SlotCard(tk.Frame):
         self._btn_log = FlatBtn(ff, text="Events ▸",   font=("Arial", 10, "bold"), fg=config.COLOR_ACCENT, bg=B, active_bg=config.COLOR_BORDER, cmd=self._toggle_log, pad_x=8, pad_y=4)
         self._btn_log.pack(side="right")
 
-        # 7. Hidden event log
+        # Hidden event log
         self._log_frame = tk.Frame(self, bg=P, highlightthickness=0, bd=0)
         sb = tk.Scrollbar(self._log_frame, bg=config.COLOR_PANEL_HDR, troughcolor=B, width=10)
         sb.pack(side="right", fill="y")
@@ -140,7 +140,7 @@ class SlotCard(tk.Frame):
         self._listbox.pack(fill="both", expand=True, padx=(4, 0))
         sb.config(command=self._listbox.yview)
 
-    # ── Internal helpers ───────────────────────────────────────────────────────
+    # --- Internal helpers ---
 
     def _set_status(self, msg, dot=None):
         self._status_var.set(msg)
@@ -179,7 +179,7 @@ class SlotCard(tk.Frame):
             result.append(ne)
         return result
 
-    # ── Public API ─────────────────────────────────────────────────────────────
+    # --- Public API ---
 
     def set_binding(self, action: str, combo: frozenset):
         setattr(self, f"hk_{action}", combo)
@@ -188,7 +188,7 @@ class SlotCard(tk.Frame):
     def get_events(self) -> list:
         return self._original_events if self._original_events is not None else self.engine.events
 
-    # ── Record ─────────────────────────────────────────────────────────────────
+    # --- Record ---
 
     def toggle_record(self, is_hotkey=False):
         if not self.engine.is_recording:
@@ -208,7 +208,7 @@ class SlotCard(tk.Frame):
             self._set_status(f"{len(self.engine.events)} events", config.COLOR_GREEN)
             self.master_app.notify_change()
 
-    # ── Playback ───────────────────────────────────────────────────────────────
+    # --- Playback ---
 
     def play(self):
         if not self.engine.events:
@@ -282,7 +282,7 @@ class SlotCard(tk.Frame):
         self.btn_stop.config_state("disabled")
         self._set_status("Stopped", config.COLOR_MUTED)
 
-    # ── File I/O ───────────────────────────────────────────────────────────────
+    # --- File I/O ---
 
     def save(self):
         if not self.engine.events:

@@ -1,7 +1,7 @@
 # input_handler.py — macOS only (Quartz CGEvents)
 import sys
 import time
-
+from utils.logger import logger
 import Quartz
 from Quartz import (
     CGEventCreateMouseEvent, CGEventCreateKeyboardEvent,
@@ -123,20 +123,22 @@ def fire_event(event: dict) -> None:
     except Exception:
         pass
 
-
+# Release every key/button currently tracked as held. 
+# Call on stop/crash.
 def release_all() -> None:
-    """Release every key/button currently tracked as held. Call on stop/crash."""
     for k in list(_held_keys):
         try:
             _post_key(k, False)
         except Exception as e:
             print(f"[Sally Clicks] Failed to release key {k!r}: {e}", file=sys.stderr)
+            logger.error(f"Emergency release failed for key {k!r}: {e}")
     for b in list(_held_mouse):
         try:
             _, up, bid = _mouse_consts(b)
             _post_mouse(up, 0, 0, bid)
         except Exception as e:
             print(f"[Sally Clicks] Failed to release button {b!r}: {e}", file=sys.stderr)
+            logger.error(f"Emergency release failed for mouse button {b!r}: {e}")
     _held_keys.clear()
     _held_mouse.clear()
 

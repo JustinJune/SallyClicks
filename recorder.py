@@ -3,6 +3,7 @@ import sys
 import time
 import threading
 import input_handler
+from utils.logger import logger
 
 MIN_DELAY = 0.001  # 1 ms minimum between events — prevents injection storms
 
@@ -157,6 +158,7 @@ class MacroEngine:
             if self._run_loop: CFRunLoopStop(self._run_loop)
         except Exception as e:
             print(f"[Sally Clicks] Error stopping event tap: {e}", file=sys.stderr)
+            logger.error(f"Error stopping event tap: {e}", exc_info=True)
         self._tap = self._rl_source = self._run_loop = None
 
     # ── Playback ──────────────────────────────────────────────────────────────
@@ -180,6 +182,7 @@ class MacroEngine:
                         on_loop_callback(iteration, loops)
                     except Exception as e:
                         print(f"[Sally Clicks] Loop callback error: {e}", file=sys.stderr)
+                        logger.error(f"Loop callback error: {e}", exc_info=True)
 
                 t_start = time.perf_counter()
                 cursor  = 0.0
@@ -212,6 +215,7 @@ class MacroEngine:
                             on_event_callback(i)
                         except Exception as e:
                             print(f"[Sally Clicks] Event callback error: {e}", file=sys.stderr)
+                            logger.error(f"Event callback error: {e}", exc_info=True)
 
                 iteration += 1
                 if loops != -1 and iteration >= loops:
@@ -223,6 +227,7 @@ class MacroEngine:
                 on_complete_callback()
             except Exception as e:
                 print(f"[Sally Clicks] Completion callback error: {e}", file=sys.stderr)
+                logger.error(f"Completion callback error: {e}", exc_info=True)
 
         threading.Thread(target=_thread, daemon=True).start()
 

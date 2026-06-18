@@ -18,6 +18,7 @@ import tkinter as tk
 import base64
 from cryptography.fernet import Fernet
 from dataclasses import dataclass
+from utils.logger import logger
 
 # --- App level key for individual macros ---
 # Not really for security, just a check to see if it was tampered with
@@ -37,6 +38,7 @@ def _machine_key() -> bytes:
                 return hashlib.sha256(f"sally-clicks:{uuid}".encode()).digest()
     except Exception as e:
         print(f"[Sally Clicks] Could not read hardware UUID: {e}", file=sys.stderr)
+        logger.warning(f"Could not read hardware UUID: {e}")
     # Fallback — better than nothing
     return hashlib.sha256(b"sally-clicks:fallback-key-mac").digest()
 
@@ -221,6 +223,7 @@ def save_macro(filename: str, events: list, is_secure: bool =False) -> bool:
         return True
     except Exception as e:
         print(f"Save error: {e}", file=sys.stderr)
+        logger.error(f"Save error: {e}", exc_info=True)
         return False
 
 # --- Load and verify macro file ---
@@ -322,6 +325,7 @@ def save_session(filename: str, session_data: dict, is_secure: bool = False) -> 
         
     except Exception as e:
         print(f"Save session error: {e}", file=sys.stderr)
+        logger.error(f"Save session error: {e}", exc_info=True)
         return False
 
 #  Load, decrypt (if needed), and verify a full workspace session file.

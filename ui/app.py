@@ -12,6 +12,7 @@ from ui.stitch_dialog import open_stitch_dialog
 from ui.hotkey_manager import open_hotkey_manager
 from ui.slot_card import filedialog
 from ui.security_dialog import ask_security_lock
+from utils.logger import logger
 
 
 
@@ -46,6 +47,7 @@ class AppGUI:
                 cb()
             except Exception as e:
                  print(f"[Sally Clicks] Observer error: {e}", file=sys.stderr)
+                 logger.error(f"Observer error: {e}", exc_info=True)
 
     def _on_global_click(self, event):
         if event.widget and not isinstance(event.widget, tk.Entry):
@@ -147,6 +149,7 @@ class AppGUI:
                 if slot.engine.is_recording: slot.toggle_record()
             except Exception as e:
                 print(f"[Sally Clicks] Error stopping slot: {e}", file=sys.stderr)
+                logger.error(f"Error stopping slot: {e}", exc_info=True)
 
     # ── Chrome (toolbar + card canvas) ───────────────────────────────────────
 
