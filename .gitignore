@@ -47,3 +47,9 @@ env/
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
+
+#Native Swift Engine 
+# Ignore the compiled binary 
+# developers must build this via the Makefile
+*.dylib
+*.dSYM/

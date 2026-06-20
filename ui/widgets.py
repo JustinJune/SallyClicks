@@ -19,9 +19,8 @@ def event_label(ev: dict) -> str:
 
 
 # --- FlatBtn ---
-
+# Borderless button — avoids macOS black-border and dimming artifacts.
 class FlatBtn(tk.Frame):
-    """Borderless button — avoids macOS black-border and dimming artifacts."""
 
     def __init__(self, parent, text, fg, bg, active_bg, cmd, font,
                  pad_x=6, pad_y=3, disabled=False):
@@ -69,6 +68,13 @@ class FlatBtn(tk.Frame):
             self.lbl.config(bg=self.normal_bg)
 
     def update_style(self, text=None, fg=None, bg=None, active_bg=None):
+                # Guard against calls after the underlying Tk widget has been destroyed
+        try:
+            if not self.winfo_exists():
+                return
+        except tk.TclError:
+            return
+        
         if text       is not None: self.lbl.config(text=text)
         if fg         is not None:
             self.normal_fg = fg

@@ -1,4 +1,5 @@
-# recorder.py — macOS only (Quartz CGEvent tap)
+# recorder.py — macOS only 
+# Swapped our Quartz import from here for Swift
 import sys
 import time
 import threading
@@ -7,6 +8,7 @@ from utils import logger
 
 MIN_DELAY = 0.001  # 1 ms minimum between events — prevents injection storms
 
+''''
 import Quartz
 from Quartz import (
     CGEventTapCreate, CGEventTapEnable,
@@ -39,7 +41,7 @@ _MOUSE_MASK = (
     (1 << kCGEventOtherMouseDown) |
     (1 << kCGEventOtherMouseUp)
 )
-
+'''
 
 class MacroEngine:
     def __init__(self):
@@ -49,22 +51,15 @@ class MacroEngine:
         self.last_time    = None
         self._held_keys   = set()
 
-        self._tap       = None
-        self._rl_source = None
-        self._rl_thread = None
-        self._run_loop  = None
-
     # Recording Logic
     def start_recording(self) -> None:
         self.events       = []
         self._held_keys   = set()
         self.is_recording = True
         self.last_time    = time.perf_counter()
-        self._start_tap()
 
     def stop_recording(self, trim_keys: int = 0, trim_click: bool = False) -> None:
         self.is_recording = False
-        self._stop_tap()
 
         # Remove the inputs used to trigger stop_recording itself
         if trim_keys > 0:
@@ -77,8 +72,32 @@ class MacroEngine:
                 if self.events.pop()["type"] == "click_down":
                     break
 
-    # Quartz tap 
+    def record_mouse(self, type_str: str, x: float, y: float, btn_str: str):
+        if not self.is_recording: return
+        now = time.perf_counter()
+        self.events.append({
+            "type":   type_str,
+            "x":      x,
+            "y":      y,
+            "button": btn_str,
+            "delay":  now - self.last_time,
+        })
+        self.last_time = now
 
+    def record_key(self, type_str: str, key_str: str):
+        if not self.is_recording: return
+        now = time.perf_counter()
+        if type_str == "key_down":
+            if key_str not in self._held_keys:
+                self._held_keys.add(key_str)
+                self.events.append({"type": type_str, "key": key_str, "delay": now - self.last_time})
+                self.last_time = now
+        else:
+            self._held_keys.discard(key_str)
+            self.events.append({"type": type_str, "key": key_str, "delay": now - self.last_time})
+            self.last_time = now
+    '''
+    # Quartz tap 
     def _quartz_callback(self, proxy, event_type, event, refcon):
         if not self.is_recording:
             return event
@@ -124,6 +143,7 @@ class MacroEngine:
             self.last_time = now
 
         return event
+    
 
     def _start_tap(self) -> None:
         self._tap = CGEventTapCreate(
@@ -159,9 +179,8 @@ class MacroEngine:
             print(f"[Sally Clicks] Error stopping event tap: {e}", file=sys.stderr)
             logger.error(f"Error stopping event tap: {e}", exc_info=True)
         self._tap = self._rl_source = self._run_loop = None
-
+    '''
     # Playback Logic
-
     def play_macro(
         self,
         on_complete_callback,
@@ -195,7 +214,7 @@ class MacroEngine:
                     cursor   += max(raw_delay, MIN_DELAY)
                     target    = t_start + cursor
 
-                    # High-resolution busy-wait in 0.5 ms chunks
+                    # High resolution busy-wait in 0.5 ms chunks
                     while True:
                         remaining = target - time.perf_counter()
                         if remaining <= 0:

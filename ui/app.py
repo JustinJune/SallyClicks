@@ -83,6 +83,12 @@ class AppGUI:
     def finish_binding(self, action_tuple, frozen_combo):
         slot, action = action_tuple
 
+        # Capture and clear binding state immediately, before any call that
+        # could re-enter the Tk event loop. This prevents
+        # hotkey-manager rebuild from destroying active_bind_btn out while a warning dialog is open.
+        target_btn = self.input_manager.active_bind_btn
+        self.input_manager.active_bind_btn = None
+
         # Only check for duplicates if the user actually pressed a key 
         if frozen_combo:
             conflict_name = None
@@ -129,6 +135,11 @@ class AppGUI:
             label = " + ".join(sorted(frozen_combo)) if frozen_combo else "Unbound"
             self.input_manager.active_bind_btn.update_style(text=label, bg=config.COLOR_BG)
             self.input_manager.active_bind_btn = None
+
+        if target_btn is not None:
+            label = " + ".join(sorted(frozen_combo)) if frozen_combo else "Unbound"
+            target_btn.update_style(text=label, bg=config.COLOR_BG)
+ 
 
     def check_hotkeys(self, frozen_keys):
         if not frozen_keys:
@@ -371,7 +382,12 @@ class AppGUI:
 
         # --- Rebuild Slots ---
         for s_data in session_data.get("slots", []):
-            slot = self._add_slot(custom_label=s_data.get("label"))
+            lbl = s_data.get("label")
+
+            if lbl in self._label_pool:
+                self._label_pool.remove(lbl)
+            
+            slot = self._add_slot(custom_label=lbl)
             if not slot: 
                 continue
 

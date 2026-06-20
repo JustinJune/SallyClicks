@@ -1,7 +1,12 @@
-# input_handler.py — macOS only (Quartz CGEvents)
+# input_handler.py 
+# does not use Quartz CGEvents anymore
 import sys
+import os
 import time
+import ctypes
 from utils import logger
+
+'''
 import Quartz
 from Quartz import (
     CGEventCreateMouseEvent, CGEventCreateKeyboardEvent,
@@ -35,12 +40,58 @@ _KEY_NAME_TO_CG: dict[str, int] = {
     "l": 37, "j": 38, "'": 39, "k": 40, ";": 41, "\\": 42,
     ",": 43, "/": 44, "n": 45, "m": 46, ".": 47, "`": 50,
 }
+'''
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__)) # Adjust if needed
+if os.path.basename(BASE_DIR) == "ui":
+    BASE_DIR = os.path.dirname(BASE_DIR)
+DYLIB_PATH = os.path.join(BASE_DIR, "libsally.dylib")
+
+try:
+    sally_lib = ctypes.CDLL(DYLIB_PATH)
+except OSError:
+    print(f"[Error] Could not find {DYLIB_PATH}. Compile it first!", file=sys.stderr)
+    sys.exit(1)
 _held_keys:  set[str] = set()
 _held_mouse: set[str] = set()
 
+sally_lib.check_accessibility.restype = ctypes.c_bool
+sally_lib.inject_mouse.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_int32, ctypes.c_bool]
+sally_lib.inject_key.argtypes = [ctypes.c_uint16, ctypes.c_bool]
 
-# ── Internal helpers ──────────────────────────────────────────────────────────
+KEY_CALLBACK = ctypes.CFUNCTYPE(None, ctypes.c_uint16, ctypes.c_bool)
+MOUSE_CALLBACK = ctypes.CFUNCTYPE(None, ctypes.c_double, ctypes.c_double, ctypes.c_int32, ctypes.c_bool)
+sally_lib.start_listener.argtypes = [KEY_CALLBACK, MOUSE_CALLBACK]
+
+# Keep references to prevent garbage collection
+_k_cb = None
+_m_cb = None
+
+_held_keys = set()
+_held_mouse = set()
+
+# --- Public API ---
+def is_trusted() -> bool:
+    return sally_lib.check_accessibility()
+
+def start_native_listener(on_key, on_mouse):
+    global _k_cb, _m_cb
+    _k_cb = KEY_CALLBACK(on_key)
+    _m_cb = MOUSE_CALLBACK(on_mouse)
+    sally_lib.start_listener(_k_cb, _m_cb)
+
+def stop_native_listener():
+    sally_lib.stop_listener()
+
+def _key_to_code(key_str: str) -> int | None:
+    s = key_str.strip("'\"")
+    if s.startswith("cg:"):
+        try: return int(s[3:])
+        except: return None
+    return None
+
+'''
+# -- Old Internal helpers ---
 
 def _mouse_consts(btn_str: str) -> tuple:
     """Return (event_down, event_up, button_id) for a button string."""
@@ -76,9 +127,9 @@ def _post_key(key_str: str, down: bool) -> None:
     ev = CGEventCreateKeyboardEvent(None, code, down)
     if ev:
         CGEventPost(kCGHIDEventTap, ev)
+'''
 
-
-# ── Public API ────────────────────────────────────────────────────────────────
+# -- Public API ---
 
 def fire_event(event: dict) -> None:
     """
@@ -88,45 +139,76 @@ def fire_event(event: dict) -> None:
     """
     try:
         t   = event["type"]
-        btn = event.get("button", "Button.left")
-
         if t in ("click", "click_down", "click_up"):
-            x, y          = int(event["x"]), int(event["y"])
-            dn, up, bid   = _mouse_consts(str(btn))
-
+            x, y = float(event["x"]), float(event["y"])
+            btn_str = str(event.get("button", "Button.left"))
+            if "right" in btn_str:
+                bid = 1
+            elif "middle" in btn_str:
+                bid = 2
+            else:
+                bid = 0
+            
             if t == "click":
-                _post_mouse(dn, x, y, bid)
+                sally_lib.inject_mouse(x, y, bid, True)
                 time.sleep(0.012)
-                _post_mouse(up, x, y, bid)
+                sally_lib.inject_mouse(x, y, bid, False)
             elif t == "click_down":
-                _post_mouse(dn, x, y, bid)
-                _held_mouse.add(str(btn))
+                sally_lib.inject_mouse(x, y, bid, True)
+                _held_mouse.add(str(btn_str))
             elif t == "click_up":
-                _post_mouse(up, x, y, bid)
-                _held_mouse.discard(str(btn))
+                sally_lib.inject_mouse(x, y, bid, False)
+                _held_mouse.discard(str(btn_str))
 
         elif t in ("key", "key_down", "key_up"):
             k = str(event.get("key", ""))
+            code = _key_to_code(k)
+            if code is None: return
 
             if t == "key":
                 dur = max(float(event.get("duration", 0.05)), 0.012)
-                _post_key(k, True)
+                sally_lib.inject_key(code, True)
                 time.sleep(dur)
-                _post_key(k, False)
+                sally_lib.inject_key(code, False)
             elif t == "key_down":
-                _post_key(k, True)
+                sally_lib.inject_key(code, True)
                 _held_keys.add(k)
             elif t == "key_up":
-                _post_key(k, False)
+                sally_lib.inject_key(code, False)
                 _held_keys.discard(k)
-
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error(f"Event failed: {e}")
 
 # Release every key/button currently tracked as held. 
 # Call on stop/crash.
 def release_all() -> None:
-    for k in list(_held_keys):
+    # Release all held keys
+    for key in list(_held_keys):
+        code = _key_to_code(key)
+         # Skip keys that cannot be mapped to a virtual key code
+        if code is None:
+            continue
+
+        sally_lib.inject_key(code, False)
+
+    # Release all held mouse buttons.
+    for button in list(_held_mouse):
+
+        if "right" in button:
+            button_id = 1
+        elif "middle" in button:
+            button_id = 2
+        else:
+            # Default to left mouse button.
+            button_id = 0
+
+        sally_lib.inject_mouse(
+            0,        
+            0,         
+            button_id,
+            False      
+        )
+        '''
         try:
             _post_key(k, False)
         except Exception as e:
@@ -139,9 +221,10 @@ def release_all() -> None:
         except Exception as e:
             print(f"[Sally Clicks] Failed to release button {b!r}: {e}", file=sys.stderr)
             logger.error(f"Emergency release failed for mouse button {b!r}: {e}")
+            '''
+    # Clear tracking state
     _held_keys.clear()
     _held_mouse.clear()
-
 
 # Legacy alias
 execute_event = fire_event
