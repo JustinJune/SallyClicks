@@ -234,7 +234,7 @@ class AppGUI:
                 bg=config.COLOR_ACCENT_LT, active_bg=config.COLOR_BORDER,
                 cmd=lambda: open_stitch_dialog(self),
                 ).pack(side="right", padx=(0, 8))
-        FlatBtn(toolbar, text="⚡ AutoClicker", 
+        FlatBtn(toolbar, text="AutoClicker", 
                 font=config.UI_FONT, 
                 fg=config.COLOR_TEXT, 
                 bg=config.COLOR_PANEL_HDR, 

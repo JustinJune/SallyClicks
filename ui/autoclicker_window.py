@@ -19,7 +19,7 @@ def open_autoclicker_window(app):
     win.configure(bg=config.COLOR_PANEL)
 
     win.attributes("-topmost", True)
-    win.resizable(False, False)
+    win.resizable(True, True)
 
     app.ac_window = win
     engine = app.autoclicker
