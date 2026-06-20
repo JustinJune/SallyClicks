@@ -13,7 +13,8 @@ from ui.hotkey_manager import open_hotkey_manager
 from ui.slot_card import filedialog
 from ui.security_dialog import ask_security_lock
 from utils import logger
-
+from autoclicker import AutoClickerEngine
+from ui.autoclicker_window import open_autoclicker_window
 
 
 class AppGUI:
@@ -25,7 +26,6 @@ class AppGUI:
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
         self.root.title(config.WINDOW_TITLE)
         self.root.configure(bg=config.COLOR_BG)
-        self.root.attributes("-topmost", True)
         self.root.resizable(True, True)
         self.root.geometry(f"{config.WINDOW_W}x{config.WINDOW_H}")
         # Add Compact Features
@@ -37,6 +37,12 @@ class AppGUI:
 
         self.input_manager   = GlobalInputManager(self)
         self.hk_global_stop  = frozenset()
+
+        # Persistent AutoClicker state 
+        self.hk_autoclick = frozenset()
+        self.autoclicker = AutoClickerEngine()
+        self.ac_interval_var = tk.StringVar(value="50") 
+        self.ac_window = None
 
         self._build_chrome()
         self._add_slot()
@@ -63,7 +69,7 @@ class AppGUI:
     def start_binding(self, action_tuple, btn_widget):
         if self.input_manager.binding_action is not None:
             return
-        self.root.focus_set()
+        btn_widget.focus_set()
         btn_widget.update_style(text="Press…", bg=config.COLOR_RED_LT)
         self.input_manager.binding_action     = action_tuple
         self.input_manager.active_bind_btn    = btn_widget
@@ -73,6 +79,8 @@ class AppGUI:
         # Save original hotkey combo
         if slot == "__global__":
             self.input_manager.original_combo = self.hk_global_stop
+        elif slot == "__autoclick__":
+            self.input_manager.original_combo = self.hk_autoclick
         else:
             self.input_manager.original_combo = getattr(slot, f"hk_{action}")
 
@@ -80,12 +88,11 @@ class AppGUI:
         if self.input_manager.active_bind_btn:
             self.input_manager.active_bind_btn.update_style(text=combo_str)
 
+    # Capture and clear binding state immediately, before any call that
+    # could re-enter the Tk event loop. This prevents
+    # hotkey-manager rebuild from destroying active_bind_btn out while a warning dialog is open.
     def finish_binding(self, action_tuple, frozen_combo):
         slot, action = action_tuple
-
-        # Capture and clear binding state immediately, before any call that
-        # could re-enter the Tk event loop. This prevents
-        # hotkey-manager rebuild from destroying active_bind_btn out while a warning dialog is open.
         target_btn = self.input_manager.active_bind_btn
         self.input_manager.active_bind_btn = None
 
@@ -96,6 +103,8 @@ class AppGUI:
             # Check Global Stop
             if self.hk_global_stop == frozen_combo and slot != "__global__":
                 conflict_name = "Global Stop"
+            elif self.hk_autoclick == frozen_combo and slot != "__autoclick__":
+                conflict_name = "AutoClicker Toggle"
 
             # Check all individual slots
             if not conflict_name:
@@ -127,6 +136,8 @@ class AppGUI:
         # This applies either the new hotkey, the reverted hotkey, or unbinds it
         if slot == "__global__":
             self.hk_global_stop = frozen_combo
+        elif slot == "__autoclick__":
+            self.hk_autoclick = frozen_combo
         else:
             slot.set_binding(action, frozen_combo)
 
@@ -149,6 +160,19 @@ class AppGUI:
 
         if self.hk_global_stop and frozen_keys == self.hk_global_stop:
             self._global_stop_all()
+            if self.autoclicker.is_clicking:
+                self.autoclicker.toggle(100) 
+                self.ac_card.update_ui_state()
+            self.input_manager.held_keys.clear()
+            return
+
+        if self.hk_autoclick and frozen_keys == self.hk_autoclick:
+            try: interval = float(self.ac_interval_var.get()) 
+            except ValueError: interval = 100.0 
+            self.autoclicker.toggle(interval)
+            if self.ac_window and self.ac_window.winfo_exists():
+                self.ac_window.update_ui_state() 
+                
             self.input_manager.held_keys.clear()
             return
 
@@ -172,8 +196,7 @@ class AppGUI:
                 print(f"[Sally Clicks] Error stopping slot: {e}", file=sys.stderr)
                 logger.error(f"Error stopping slot: {e}", exc_info=True)
 
-    # ── Chrome (toolbar + card canvas) ───────────────────────────────────────
-
+    # --- Chrome (toolbar + card canvas) ---
     def _build_chrome(self):
         P = config.COLOR_PANEL
         B = config.COLOR_BG
@@ -211,6 +234,13 @@ class AppGUI:
                 bg=config.COLOR_ACCENT_LT, active_bg=config.COLOR_BORDER,
                 cmd=lambda: open_stitch_dialog(self),
                 ).pack(side="right", padx=(0, 8))
+        FlatBtn(toolbar, text="⚡ AutoClicker", 
+                font=config.UI_FONT, 
+                fg=config.COLOR_TEXT, 
+                bg=config.COLOR_PANEL_HDR, 
+                active_bg=config.COLOR_BORDER, 
+                cmd=lambda: open_autoclicker_window(self)
+                ).pack(side="right", padx=(0, 8))
         FlatBtn(toolbar, text="+ Add Slot",
                 font=config.UI_FONT, fg=config.COLOR_PANEL,
                 bg=config.COLOR_ACCENT, active_bg="#1D4ED8",
@@ -223,7 +253,6 @@ class AppGUI:
             cmd=self.toggle_compact_mode,
         )
         self.btn_compact.pack(side="right", padx=(8, 0))
-
 
         # Card scroll area
         outer = tk.Frame(self.root, bg=B, highlightthickness=0, bd=0)
@@ -271,7 +300,7 @@ class AppGUI:
         self.root.bind_all("<MouseWheel>",       _scroll_v)
         self.root.bind_all("<Shift-MouseWheel>", _scroll_h)
 
-    # ── Slot management ───────────────────────────────────────────────────────
+    # --- Slot management ---
 
     def _take_label(self) -> str:
         return self._label_pool.pop(0) if self._label_pool else f"#{len(self.slots)+1}"
@@ -313,7 +342,7 @@ class AppGUI:
             title="Save Global Workspace",
             defaultextension=".json",
             filetypes=[("JSON Session", "*.json")],
-            initialfile= "DEFAULT_SESSION_FILE",
+            initialfile= config.DEFAULT_SESSION_FILE,
         )
         if not fp:
             return

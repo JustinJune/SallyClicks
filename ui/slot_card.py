@@ -39,7 +39,6 @@ class SlotCard(tk.Frame):
         self.propagate(False)
 
     # --- Build ---
-
     def _build(self):
         P, H, B = config.COLOR_PANEL, config.COLOR_PANEL_HDR, config.COLOR_BG
 
@@ -52,43 +51,109 @@ class SlotCard(tk.Frame):
         self._name_var.trace_add("write", lambda *_: self.master_app.notify_change())
         tk.Entry(
             hdr, textvariable=self._name_var, width=12,
-            font=config.UI_FONT_BOLD, fg=config.COLOR_TEXT, bg=H,
-            insertbackground=config.COLOR_TEXT, highlightthickness=0, relief="flat", bd=0,
+            font=config.UI_FONT_BOLD, 
+            fg=config.COLOR_TEXT, bg=H,
+            insertbackground=config.COLOR_TEXT, 
+            highlightthickness=0, relief="flat", bd=0,
         ).pack(side="left", padx=10, fill="y")
 
         FlatBtn(
-            hdr, text="×", font=("Arial", 14, "bold"),
-            fg=config.COLOR_MUTED, bg=H, active_bg=config.COLOR_RED_LT,
-            cmd=self._on_remove, pad_x=10, pad_y=4,
+            hdr, text="×", 
+            font=("Arial", 14, "bold"),
+            fg=config.COLOR_MUTED, 
+            bg=H,
+            active_bg=config.COLOR_RED_LT,
+            cmd=self._on_remove, 
+            pad_x=10, 
+            pad_y=4,
         ).pack(side="right")
 
         # Timeline
         self.timeline = MiniTimeline(self)
-        self.timeline.pack(fill="x", padx=8, pady=(8, 2))
+        self.timeline.pack(
+            fill="x", 
+            padx=8, 
+            pady=(8, 2))
 
         # Status
-        self.status_frame = tk.Frame(self, bg=P, highlightthickness=0, bd=0)
-        self.status_frame.pack(fill="x", padx=10, pady=(4, 0))
-        self._dot = tk.Label(self.status_frame, text="●", fg=config.COLOR_MUTED, bg=P, font=("Arial", 12))
+        self.status_frame = tk.Frame(
+            self, 
+            bg=P, 
+            highlightthickness=0, 
+            bd=0)
+        self.status_frame.pack(
+            fill="x", 
+            padx=10, 
+            pady=(4, 0))
+        self._dot = tk.Label(
+            self.status_frame, 
+            text="●", 
+            fg=config.COLOR_MUTED, 
+            bg=P, 
+            font=("Arial", 12))
         self._dot.pack(side="left")
         self._status_var = tk.StringVar(value="Ready")
         tk.Label(
-            self.status_frame, textvariable=self._status_var,
-            font=("Arial", 11, "bold"), fg=config.COLOR_TEXT_MED, bg=P, anchor="w",
+            self.status_frame, 
+            textvariable=self._status_var,
+            font=("Arial", 11, "bold"), 
+            fg=config.COLOR_TEXT_MED, 
+            bg=P, 
+            anchor="w",
         ).pack(side="left", padx=(4, 0))
 
         # Controls
-        self.control_frame = tk.Frame(self, bg=P, highlightthickness=0, bd=0)
+        self.control_frame = tk.Frame(
+            self, 
+            bg=P,
+            highlightthickness=0, 
+            bd=0)
         self.control_frame.pack(fill="x", padx=8, pady=(4, 4))
-        self.btn_rec  = FlatBtn(self.control_frame, text="● Rec",  font=("Arial", 11, "bold"), fg=config.COLOR_RED,   bg=B, active_bg=config.COLOR_BORDER, cmd=self.toggle_record, pad_x=10, pad_y=6)
-        self.btn_play = FlatBtn(self.control_frame, text="▶ Play", font=("Arial", 11, "bold"), fg=config.COLOR_GREEN, bg=B, active_bg=config.COLOR_BORDER, cmd=self.play,          pad_x=10, pad_y=6)
-        self.btn_stop = FlatBtn(self.control_frame, text="■",      font=("Arial", 11, "bold"), fg=config.COLOR_MUTED, bg=B, active_bg=config.COLOR_BORDER, cmd=self.stop,          pad_x=10, pad_y=6, disabled=True)
-        for b in (self.btn_rec, self.btn_play, self.btn_stop):
-            b.pack(side="left", padx=2)
+        self.btn_rec  = FlatBtn(
+            self.control_frame, 
+            text="● Rec",  
+            font=("Arial", 11, "bold"), 
+            fg=config.COLOR_RED,   bg=B, 
+            active_bg=config.COLOR_BORDER, 
+            cmd=self.toggle_record, 
+            pad_x=10, 
+            pad_y=6)
+        self.btn_play = FlatBtn(
+            self.control_frame, 
+            text="▶ Play", 
+            font=("Arial", 11, "bold"), 
+            fg=config.COLOR_GREEN, 
+            bg=B, 
+            active_bg=config.COLOR_BORDER, 
+            cmd=self.play,          
+            pad_x=10, 
+            pad_y=6)
+        self.btn_stop = FlatBtn(
+            self.control_frame, 
+            text="■",      
+            font=("Arial", 11, "bold"), 
+            fg=config.COLOR_MUTED, 
+            bg=B, 
+            active_bg=config.COLOR_BORDER, 
+            cmd=self.stop,          
+            pad_x=10, 
+            pad_y=6, 
+            disabled=True)
+        for b in (
+            self.btn_rec, 
+            self.btn_play, 
+            self.btn_stop):b.pack(side="left", padx=2)
 
         # Loop + Speed
-        self.loop_frame = tk.Frame(self, bg=P, highlightthickness=0, bd=0)
-        self.loop_frame.pack(fill="x", padx=8, pady=(6, 10))
+        self.loop_frame = tk.Frame(
+            self, 
+            bg=P, 
+            highlightthickness=0, 
+            bd=0)
+        self.loop_frame.pack(
+            fill="x", 
+            padx=8, 
+            pady=(6, 10))
 
         tk.Checkbutton(
             self.loop_frame, text="∞", variable=self._inf_var,
@@ -105,41 +170,127 @@ class SlotCard(tk.Frame):
             relief="flat", highlightthickness=0, bd=0,
             validate="key", validatecommand=vcmd,
         )
-        self._loop_entry.pack(side="left", padx=(0, 4), ipady=2)
-        tk.Label(self.loop_frame, text="times", font=("Arial", 11), fg=config.COLOR_MUTED, bg=P).pack(side="left")
+        self._loop_entry.pack(
+            side="left", 
+            padx=(0, 4), 
+            ipady=2)
+        tk.Label(
+            self.loop_frame, 
+            text="times", 
+            font=("Arial", 11), 
+            fg=config.COLOR_MUTED, 
+            bg=P).pack(side="left")
 
-        tk.Frame(self.loop_frame, bg=P).pack(side="left", fill="x", expand=True)  # spring spacer
+        tk.Frame(
+            self.loop_frame, 
+            bg=P).pack(side="left", fill="x", expand=True) 
 
         speed_opts = ["0.5x", "1.0x", "1.5x", "2.0x", "4.0x", "8.0x"]
         om = tk.OptionMenu(self.loop_frame, self._speed_var, *speed_opts)
-        self.divider = tk.Frame(self, bg=config.COLOR_BORDER, height=1, highlightthickness=0, bd=0)
-        self.divider.pack(fill="x", padx=8, pady=4)
-        om.config(font=("Arial", 12), bg=B, fg=config.COLOR_TEXT, highlightthickness=0, bd=0)
-        om.pack(side="left", padx=(0, 6))
-        tk.Label(self.loop_frame, text="Speed", font=("Arial", 11), fg=config.COLOR_MUTED, bg=P).pack(side="left", padx=(0, 4))
+        self.divider = tk.Frame(
+            self, 
+            bg=config.COLOR_BORDER,
+            height=1, 
+            highlightthickness=0, 
+            bd=0)
+        self.divider.pack(
+            fill="x", 
+            padx=8, 
+            pady=4)
+        om.config(
+            font=("Arial", 12), 
+            bg=B, 
+            fg=config.COLOR_TEXT, 
+            highlightthickness=0, 
+            bd=0)
+        om.pack(
+            side="left", 
+            padx=(0, 6))
+        tk.Label(
+            self.loop_frame, 
+            text="Speed", 
+            font=("Arial", 11), 
+            fg=config.COLOR_MUTED, bg=P
+            ).pack(side="left", padx=(0, 4))
 
-        tk.Frame(self, bg=config.COLOR_BORDER, height=1, highlightthickness=0, bd=0).pack(fill="x", padx=8, pady=4)
+        tk.Frame(
+            self, 
+            bg=config.COLOR_BORDER, 
+            height=1, 
+            highlightthickness=0, 
+            bd=0
+            ).pack(fill="x", padx=8, pady=4)
 
         # Footer
-        self.footer_frame = tk.Frame(self, bg=P, highlightthickness=0, bd=0)
-        self.footer_frame.pack(fill="x", padx=8, pady=(0, 8))
-        FlatBtn(self.footer_frame, text="💾 Save", font=("Arial", 10), fg=config.COLOR_TEXT_MED, bg=B, active_bg=config.COLOR_BORDER, cmd=self.save,         pad_x=8, pad_y=4).pack(side="left", padx=(0, 4))
-        FlatBtn(self.footer_frame, text="📂 Load", font=("Arial", 10), fg=config.COLOR_TEXT_MED, bg=B, active_bg=config.COLOR_BORDER, cmd=self.load,         pad_x=8, pad_y=4).pack(side="left", padx=(0, 4))
-        self._btn_log = FlatBtn(self.footer_frame, text="Events ▸",   font=("Arial", 10, "bold"), fg=config.COLOR_ACCENT, bg=B, active_bg=config.COLOR_BORDER, cmd=self._toggle_log, pad_x=8, pad_y=4)
+        self.footer_frame = tk.Frame(
+            self, 
+            bg=P, 
+            highlightthickness=0, 
+            bd=0)
+        self.footer_frame.pack(
+            fill="x", 
+            padx=8, 
+            pady=(0, 8))
+        FlatBtn(
+            self.footer_frame, 
+            text="💾 Save", 
+            font=("Arial", 10), 
+            fg=config.COLOR_TEXT_MED, 
+            bg=B, 
+            active_bg=config.COLOR_BORDER, 
+            cmd=self.save,         
+            pad_x=8, 
+            pad_y=4
+            ).pack(side="left", padx=(0, 4))
+        FlatBtn(
+            self.footer_frame, 
+            text="📂 Load", 
+            font=("Arial", 10), 
+            fg=config.COLOR_TEXT_MED, 
+            bg=B, 
+            active_bg=config.COLOR_BORDER, 
+            cmd=self.load,         
+            pad_x=8, 
+            pad_y=4
+            ).pack(side="left", padx=(0, 4))
+        self._btn_log = FlatBtn(
+            self.footer_frame, 
+            text="Events ▸",   
+            font=("Arial", 10, "bold"), 
+            fg=config.COLOR_ACCENT, bg=B, 
+            active_bg=config.COLOR_BORDER, 
+            cmd=self._toggle_log, 
+            pad_x=8,
+            pad_y=4)
         self._btn_log.pack(side="right")
 
         # Hidden event log
-        self._log_frame = tk.Frame(self, bg=P, highlightthickness=0, bd=0)
-        sb = tk.Scrollbar(self._log_frame, bg=config.COLOR_PANEL_HDR, troughcolor=B, width=10)
+        self._log_frame = tk.Frame(
+            self, 
+            bg=P, 
+            highlightthickness=0, 
+            bd=0)
+        sb = tk.Scrollbar(
+            self._log_frame, 
+            bg=config.COLOR_PANEL_HDR, 
+            troughcolor=B, 
+            width=10)
         sb.pack(side="right", fill="y")
         self._listbox = tk.Listbox(
             self._log_frame, font=config.UI_FONT_MONO,
             fg=config.COLOR_TEXT_MED, bg=B,
-            selectbackground=config.COLOR_ACCENT_LT, selectforeground=config.COLOR_TEXT,
-            relief="flat", bd=0, highlightthickness=0, activestyle="none",
-            yscrollcommand=sb.set, height=8,
+            selectbackground=config.COLOR_ACCENT_LT, 
+            selectforeground=config.COLOR_TEXT,
+            relief="flat", bd=0, 
+            highlightthickness=0,
+            activestyle="none",
+            yscrollcommand=sb.set, 
+            height=8,
         )
-        self._listbox.pack(fill="both", expand=True, padx=(4, 0))
+        self._listbox.pack(
+            fill="both", 
+            expand=True, 
+            padx=(4, 0))
         sb.config(command=self._listbox.yview)
 
     # --- Internal helpers ---

@@ -3,13 +3,7 @@
 A natively-injected macOS macro recorder with a clean multi-slot UI.
 
 Record mouse clicks and keystrokes, save them, stitch them together, and replay
-with absolute-time precision. This macro is built exclusively for macOS. Input recording and
-injection are handled by a small native Swift engine (compiled to a `.dylib`)
-that wraps Quartz's `CGEventTap` and `CGEventPost` APIs — Python owns the UI,
-scheduling, and persistence, while Swift owns the OS-level event tap. This
-keeps the Python/Tk UI thread free of the GIL contention that a pure-Python
-event tap would otherwise create during tight playback loops.
-
+with absolute-time precision. This macro is built exclusively for macOS. 
 ---
 
 ## Features
@@ -20,6 +14,7 @@ event tap would otherwise create during tight playback loops.
 - **True key holds** — records exactly how long each key was held and replays it faithfully
 - **Speed scaling** — replay at 0.5×, 1×, 2×, 4×, or 8×
 - **Loop control** — set a repeat count or loop infinitely with a live countdown
+- **Autoclicker** — Dynamically clicks where your mouse is at a set interval
 
 ### Multi-Slot Workspace
 
@@ -66,23 +61,15 @@ cd SallyClicks
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-make build      # compiles sally_engine.swift and libsally.dylib 
+make build     
 python main.py
 ```
 
-**`make build` must be run before the first launch.** `input_handler.py` loads
-`libsally.dylib` via `ctypes` at import time and will exit immediately if it's
-missing. If you ever edit `sally_engine.swift`, re-run `make build` to pick up
-the changes — Python does not recompile it automatically.
-
-If `make build` fails with an SDK/compiler version mismatch, your
-`xcode-select` path is likely pointing at a stale Command Line Tools install.
-Check with `xcode-select -p`; if it doesn't point at a full Xcode.app install
-matching your macOS SDK, see `make help` for troubleshooting notes.
+**`make build` must be run before the first launch.** 
 
 ## Building a Standalone App (Optional)
 
-If you prefer not to run the application from the terminal every time, you can compile into a native macOS `.app` bundle using PyInstaller. This bundles the Python interpreter and all dependencies into a single, double clickable application.
+If you prefer not to run the application from the terminal every time, you can compile into a native macOS `.app` bundle using PyInstaller. 
 
 **1. Build the Swift engine first**
 ```bash
@@ -97,10 +84,6 @@ pyinstaller --windowed --noconfirm --name "Sally Clicks" \
   --add-binary "libsally.dylib:." \
   main.py
 ```
-
-The `--add-binary` flag is required — without it, `libsally.dylib` won't be
-copied into the `.app` bundle and `input_handler.py` will fail to load it at
-runtime, even though it worked fine from the terminal.
 ---
 
 ## Accessibility Permission
@@ -129,9 +112,6 @@ keyboard input system-wide. Sally Clicks will warn you if it detects a password
 field is focused, but this detection is best-effort. Anyone with access to your
 `.json` files can read the inputs recorded in them.
 
-The `.gitignore` in this repo excludes `*.json` so you cannot accidentally
-commit macro or session files to a public repository.
-
 ---
 
 ## Controls
@@ -155,38 +135,18 @@ Sally Clicks is split across two layers:
 | UI, scheduling, persistence, hotkeys | Window chrome, slot management, timing, save/load, validation | Python (Tkinter) |
 | Input recording and injection | The actual `CGEventTap` listener and `CGEventPost` calls | Swift, compiled to `libsally.dylib` |
 
-`sally_engine.swift` exports a small C ABI (`@_cdecl`) that Python calls into
-via `ctypes` in `input_handler.py`:
-
-- `check_accessibility()` — checks Accessibility permission
-- `start_listener(keyCallback, mouseCallback)` — opens the event tap, calls back
-  into Python on every key/mouse event
-- `stop_listener()` — tears down the tap cleanly
-- `inject_key(keyCode, isDown)` / `inject_mouse(x, y, button, isDown)` — fires
-  synthetic input events during playback
-
-`recorder.py`'s `MacroEngine` no longer owns a Quartz tap directly — it exposes
-`record_key()` / `record_mouse()` methods that `ui/input_manager.py` calls from
-the Swift listener's callback thread. Playback timing and looping remain in
-Python; only the act of posting the event to the OS happens in Swift.
-
-**Why split it this way?** Python's GIL means a pure-Python event tap can
-introduce scheduling jitter under UI load. Moving the tap and injection calls
-into compiled Swift removes that contention from the hot path while keeping
-everything else — UI, validation, file I/O — in Python where development speed
-matters more than raw throughput.
-
 ## Project Structure
 
 ```
 sally-clicks/
 ├── main.py                # Entry point and OS signal handling
 ├── config.py              # UI theme, colours, and constants
-├── sally_engine.swift       # Native Swift source — CGEventTap + CGEventPost
+├── sally_engine.swift     # Native Swift source — CGEventTap + CGEventPost
 ├── recorder.py            # MacroEngine — Quartz recording and playback
 ├── input_handler.py       # CGEvent injection
 ├── requirements.txt
-├── libsally.dylib           # Compiled output of sally_engine.swift (build artifact, gitignored)
+├── libsally.dylib         # Compiled output of sally_engine.swift (build artifact, gitignored)
+├── autoclicker.py         # Autoclicker logic
 ├── utils/
 │   └── persistence.py     # Validation, checksum/HMAC, save and load
 |   └── logger.py          # Keep a log when in app form
@@ -200,6 +160,7 @@ sally-clicks/
     ├── security_dialog.py # Portable vs. locked session choice dialog
     ├── timeline.py        # Event timeline canvas
     └── widgets.py         # Shared UI primitives
+    └── autoclicker_window.py # Window UI
 ```
 
 ---

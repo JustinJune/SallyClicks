@@ -3,7 +3,7 @@
 # routes key/mouse events to whichever SlotCard is currently recording
 # fires hotkey checks on the main thread via root.after()
 # handles key-binding capture mode
-#. monitors Escape hold for emergency kill (UI-thread-independent)
+# monitors Escape hold for emergency kill (UI-thread-independent)
 
 import time
 import threading

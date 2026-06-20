@@ -55,9 +55,11 @@ except OSError:
 _held_keys:  set[str] = set()
 _held_mouse: set[str] = set()
 
+# C-type definitions
 sally_lib.check_accessibility.restype = ctypes.c_bool
 sally_lib.inject_mouse.argtypes = [ctypes.c_double, ctypes.c_double, ctypes.c_int32, ctypes.c_bool]
 sally_lib.inject_key.argtypes = [ctypes.c_uint16, ctypes.c_bool]
+sally_lib.inject_mouse_current.argtypes = [ctypes.c_int32, ctypes.c_bool]
 
 KEY_CALLBACK = ctypes.CFUNCTYPE(None, ctypes.c_uint16, ctypes.c_bool)
 MOUSE_CALLBACK = ctypes.CFUNCTYPE(None, ctypes.c_double, ctypes.c_double, ctypes.c_int32, ctypes.c_bool)
@@ -130,13 +132,12 @@ def _post_key(key_str: str, down: bool) -> None:
 '''
 
 # -- Public API ---
-
+# Click at current mouse position
+def native_click_current(btn: int, pressed: bool):
+    sally_lib.inject_mouse_current(btn, pressed)
+    
+# Execute on one input event sychnronously
 def fire_event(event: dict) -> None:
-    """
-    Execute one input event synchronously.
-    Timing/delays are the caller's responsibility (recorder.py handles them).
-    Errors are swallowed so a bad event never kills the playback thread.
-    """
     try:
         t   = event["type"]
         if t in ("click", "click_down", "click_up"):

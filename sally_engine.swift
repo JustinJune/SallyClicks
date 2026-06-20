@@ -49,6 +49,24 @@ func eventTapCallback(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent,
         let isDown = (type == .leftMouseDown || type == .rightMouseDown || type == .otherMouseDown)
         mouseCallbackWrapper?(Double(loc.x), Double(loc.y), button, isDown)
     }
+    if type == .flagsChanged {
+            let keycode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
+            let flags = event.flags
+            var isDown = false
+            
+            // Translate Apple's flag state into a simple true/false for Python
+            switch keycode {
+            case 56: isDown = flags.contains(.maskShift)
+            case 55: isDown = flags.contains(.maskCommand)
+            case 58: isDown = flags.contains(.maskAlternate) // Option
+            case 59: isDown = flags.contains(.maskControl)
+            case 57: isDown = flags.contains(.maskAlphaShift) // Caps Lock
+            default: break
+            }
+            
+            keyCallbackWrapper?(keycode, isDown)
+            return Unmanaged.passUnretained(event)
+        }
     return Unmanaged.passRetained(event)
 }
 
@@ -60,7 +78,8 @@ public func startListener(kCb: @escaping KeyCallback, mCb: @escaping MouseCallba
     let mask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue) |
                (1 << CGEventType.leftMouseDown.rawValue) | (1 << CGEventType.leftMouseUp.rawValue) |
                (1 << CGEventType.rightMouseDown.rawValue) | (1 << CGEventType.rightMouseUp.rawValue) |
-               (1 << CGEventType.otherMouseDown.rawValue) | (1 << CGEventType.otherMouseUp.rawValue)
+               (1 << CGEventType.otherMouseDown.rawValue) | (1 << CGEventType.otherMouseUp.rawValue) |
+               (1 << CGEventType.flagsChanged.rawValue)
                     
     guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap, eventsOfInterest: CGEventMask(mask), callback: eventTapCallback, userInfo: nil) else { return }
     
@@ -76,4 +95,51 @@ public func startListener(kCb: @escaping KeyCallback, mCb: @escaping MouseCallba
 public func stopListener() {
     if let tap = globalEventTap { CGEvent.tapEnable(tap: tap, enable: false) }
     if let rl = runLoop { CFRunLoopStop(rl) }
+}
+
+@_cdecl("inject_mouse_current")
+public func injectMouseCurrent(button: Int32, isDown: Bool) {
+    // Create a temporary event so we can determine the
+    // current cursor position on the screen.
+    guard let locationEvent = CGEvent(source: nil) else {
+        return
+    }
+    let cursorPosition = locationEvent.location
+    // Determine which mouse event type should be generated.
+    let eventType: CGEventType
+    if button == 0 {
+        if isDown {
+            eventType = .leftMouseDown
+        } else {
+            eventType = .leftMouseUp
+        }
+    } else if button == 1 {
+        if isDown {
+            eventType = .rightMouseDown
+        } else {
+            eventType = .rightMouseUp
+        }
+    } else {
+        if isDown {
+            eventType = .otherMouseDown
+        } else {
+            eventType = .otherMouseUp
+        }
+    }
+    // Convert the numeric button ID into a CGMouseButton.
+    guard let mouseButton = CGMouseButton(rawValue: UInt32(button)) else {
+        return
+    }
+    // Construct the mouse event at the current cursor location.
+    guard let mouseEvent = CGEvent(
+        mouseEventSource: nil,
+        mouseType: eventType,
+        mouseCursorPosition: cursorPosition,
+        mouseButton: mouseButton
+    ) else {
+        return
+    }
+    // Send the event into the HID event stream so the system
+    // treats it like a real mouse input
+    mouseEvent.post(tap: .cghidEventTap)
 }
