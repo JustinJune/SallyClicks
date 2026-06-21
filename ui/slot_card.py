@@ -30,6 +30,8 @@ class SlotCard(tk.Frame):
         self._speed_var       = tk.StringVar(value="1.0x")
         self._log_open        = False
         self._original_events = None  # stores unscaled events during speed-scaled playback
+        self._latest_tick_idx = -1
+        self._tick_poll_active = False
 
         self.hk_rec  = frozenset()
         self.hk_play = frozenset()
@@ -379,6 +381,10 @@ class SlotCard(tk.Frame):
             self._original_events = self.engine.events
             self.engine.events    = self._scaled_events(speed)
 
+        self._latest_tick_idx = -1
+        self._tick_poll_active = True
+        self._poll_tick_ui()
+
         self.engine.play_macro(
             on_complete_callback=self._on_done,
             loops=loops,
@@ -396,10 +402,18 @@ class SlotCard(tk.Frame):
             pass
 
     def _on_tick(self, idx):
+        self._latest_tick_idx = idx
+
+    def _poll_tick_ui(self):
+        if not self._tick_poll_active:
+            return
         try:
-            self.after(0, lambda i=idx: self._update_tick(i))
+            idx = self._latest_tick_idx
+            if idx >= 0:
+                self._update_tick(idx)
+            self.after(33, self._poll_tick_ui)  # ~30fps
         except tk.TclError:
-            pass
+            self._tick_poll_active = False
 
     def _update_tick(self, idx):
         try:
@@ -524,7 +538,6 @@ class SlotCard(tk.Frame):
             if self._log_open:
                 self._log_frame.pack_forget()
         else:
-            # Briefly hide the visible frames so we can reset the order
             self.status_frame.pack_forget()
             self.control_frame.pack_forget()
 
