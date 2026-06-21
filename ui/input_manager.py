@@ -108,14 +108,19 @@ class GlobalInputManager:
             except Exception as e:
                 logger.error(f"Failed to cleanup ui threads: {e}", exc_info=True)
 
-    # Check used to skip the check_hotkeys entirely when nothing is bound
-    def _has_any_hotkeys_bound(self) -> bool:
-        if self.app.hk_global_stop or self.app.hk_autoclick:
-            return True
+    # Check used to skip the check_hotkeys entirely unless hotkey is pressed
+    def _relevant_keys_in_bindings(self) -> set:
+
+        keys = set()
+        if self.app.hk_global_stop:
+            keys |= self.app.hk_global_stop
+        if self.app.hk_autoclick:
+            keys |= self.app.hk_autoclick
         for slot in self.app.slots:
-            if slot.hk_rec or slot.hk_play or slot.hk_stop:
-                return True
-        return False
+            if slot.hk_rec:  keys |= slot.hk_rec
+            if slot.hk_play: keys |= slot.hk_play
+            if slot.hk_stop: keys |= slot.hk_stop
+        return keys
 
     def _native_on_key(self, keycode: int, is_down: bool):
         k_ui = MAC_KEYCODES.get(keycode, f"key_{keycode}")
@@ -142,7 +147,7 @@ class GlobalInputManager:
                 self.app.root.after(0, self.app.update_bind_ui, self.binding_action[0], self.binding_action[1], combo_str)
                 return
             #Avoid unnecessary TK scheduling
-            if self._has_any_hotkeys_bound():
+            if k_ui in self._relevant_keys_in_bindings():
                 self.app.root.after(0, self.app.check_hotkeys, frozenset(self.held_keys))
 
             # Pass the raw CG code to the recorder
