@@ -80,8 +80,7 @@ class GlobalInputManager:
 
         
     # Called after Escape has been held for _ESCAPE_HOLD_SECS.
-    # Runs in a Timer thread — safe to call release_all() directly,
-    # and schedules a UI reset via after() for anything UI-related.
+    # Runs in a Timer thread
     def _fire_escape_hatch(self):
         # Release all physical inputs immediately 
         input_handler.release_all()
@@ -109,10 +108,19 @@ class GlobalInputManager:
             except Exception as e:
                 logger.error(f"Failed to cleanup ui threads: {e}", exc_info=True)
 
+    # Check used to skip the check_hotkeys entirely when nothing is bound
+    def _has_any_hotkeys_bound(self) -> bool:
+        if self.app.hk_global_stop or self.app.hk_autoclick:
+            return True
+        for slot in self.app.slots:
+            if slot.hk_rec or slot.hk_play or slot.hk_stop:
+                return True
+        return False
+
     def _native_on_key(self, keycode: int, is_down: bool):
         k_ui = MAC_KEYCODES.get(keycode, f"key_{keycode}")
-        k_raw = f"cg:{keycode}" # The format your JSON files expect
-
+        # Format JSON expects
+        k_raw = f"cg:{keycode}"
         if is_down:
             self.held_keys.add(k_ui)
             if self._is_escape(k_ui) and self._esc_press_time is None:
@@ -133,8 +141,9 @@ class GlobalInputManager:
                 combo_str = " + ".join(sorted(self.current_bind_combo))
                 self.app.root.after(0, self.app.update_bind_ui, self.binding_action[0], self.binding_action[1], combo_str)
                 return
-
-            self.app.root.after(0, self.app.check_hotkeys, frozenset(self.held_keys))
+            #Avoid unnecessary TK scheduling
+            if self._has_any_hotkeys_bound():
+                self.app.root.after(0, self.app.check_hotkeys, frozenset(self.held_keys))
 
             # Pass the raw CG code to the recorder
             for slot in self.app.slots:
