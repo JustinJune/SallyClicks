@@ -2,6 +2,8 @@ import Foundation
 import CoreGraphics
 import ApplicationServices
 
+let SALLY_INJECTED_TAG: Int64 = 0x53414C4C59 // Sally in hex plurb
+
 // --- Injection Python to Swift ---
 @_cdecl("check_accessibility")
 public func checkAccessibility() -> Bool {
@@ -18,12 +20,14 @@ public func injectMouse(x: Double, y: Double, button: Int32, isDown: Bool) {
     else { eventType = isDown ? .otherMouseDown : .otherMouseUp }
     
     guard let event = CGEvent(mouseEventSource: nil, mouseType: eventType, mouseCursorPosition: point, mouseButton: CGMouseButton(rawValue: UInt32(button))!) else { return }
+    event.setIntegerValueField(.eventSourceUserData, value: SALLY_INJECTED_TAG)
     event.post(tap: .cghidEventTap)
 }
 
 @_cdecl("inject_key")
 public func injectKey(keyCode: UInt16, isDown: Bool) {
     guard let event = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: isDown) else { return }
+    event.setIntegerValueField(.eventSourceUserData, value: SALLY_INJECTED_TAG)
     event.post(tap: .cghidEventTap)
 }
 
@@ -37,6 +41,11 @@ var keyCallbackWrapper: KeyCallback?
 var mouseCallbackWrapper: MouseCallback?
 
 func eventTapCallback(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent, refcon: UnsafeMutableRawPointer?) -> Unmanaged<CGEvent>? {
+    let sourceTag = event.getIntegerValueField(.eventSourceUserData)
+    if sourceTag == SALLY_INJECTED_TAG {
+        return Unmanaged.passRetained(event)
+    }
+
     if type == .keyDown || type == .keyUp {
         let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
         keyCallbackWrapper?(keyCode, type == .keyDown)
@@ -139,6 +148,7 @@ public func injectMouseCurrent(button: Int32, isDown: Bool) {
     ) else {
         return
     }
+    mouseEvent.setIntegerValueField(.eventSourceUserData, value: SALLY_INJECTED_TAG)
     // Send the event into the HID event stream so the system
     // treats it like a real mouse input
     mouseEvent.post(tap: .cghidEventTap)
