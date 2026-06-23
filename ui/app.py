@@ -26,6 +26,7 @@ class AppGUI:
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
         self.root.title(config.WINDOW_TITLE)
         self.root.configure(bg=config.COLOR_BG)
+        self.root.attributes("-topmost", True)
         self.root.resizable(True, True)
         self.root.geometry(f"{config.WINDOW_W}x{config.WINDOW_H}")
         # Add Compact Features

@@ -32,7 +32,7 @@ clean:
 	rm -f $(DYLIB)
 	rm -rf __pycache__ */__pycache__
 	rm -rf build dist *.spec
-	@echo "✨ Clean complete."
+	@echo "Clean complete."
 
 # Bundles the app for end-users using PyInstaller
 package: build
