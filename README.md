@@ -4,7 +4,7 @@ A natively-injected macOS macro recorder with a clean multi-slot UI.
 
 Record mouse clicks and keystrokes, save them, stitch them together, and replay
 with absolute-time precision. This macro is built exclusively for macOS. 
----
+
 
 ## Features
 
