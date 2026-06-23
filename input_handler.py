@@ -202,14 +202,21 @@ def release_all() -> None:
         else:
             # Default to left mouse button.
             button_id = 0
+        
+        native_click_current(button_id, False)
 
-        sally_lib.inject_mouse(
-            0,        
-            0,         
-            button_id,
-            False      
-        )
-        '''
+    # Forces release all 3 buttons at current location
+    # moreso for games where the old logic believed we were still
+    # holding down keys (right click) that made it impossible
+    # to move your camera
+    native_click_current(0, False) 
+    native_click_current(1, False) 
+    native_click_current(2, False) 
+
+    _held_keys.clear()
+    _held_mouse.clear()
+
+    '''
         try:
             _post_key(k, False)
         except Exception as e:
