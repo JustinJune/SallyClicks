@@ -67,7 +67,7 @@ python main.py
 
 **`make build` must be run before the first launch.** 
 
-## Building a Standalone App (Optional)
+## Making it into an app (Optional)
 
 If you prefer not to run the application from the terminal every time, you can compile into a native macOS `.app` bundle using PyInstaller. 
 
@@ -95,8 +95,7 @@ Sally Clicks requires Accessibility access to record and inject input system wid
 3. Re-launch Sally Clicks
 
 **Why is this needed?**
-Sally Clicks uses macOS's CGEventTap API — the same mechanism used by assistive
-technology and professional automation tools — to observe and inject keyboard and
+Sally Clicks uses macOS's CGEventTap API to observe and inject keyboard and
 mouse events at the OS level. Without this permission, recording and playback
 cannot function.
 
@@ -126,14 +125,6 @@ field is focused, but this detection is best-effort. Anyone with access to your
 
 ---
 
-## Architecture: Python + Native Swift Bridge
-
-Sally Clicks is split across two layers:
-
-| Layer | Responsibility | Language |
-|-------|----------------|----------|
-| UI, scheduling, persistence, hotkeys | Window chrome, slot management, timing, save/load, validation | Python (Tkinter) |
-| Input recording and injection | The actual `CGEventTap` listener and `CGEventPost` calls | Swift, compiled to `libsally.dylib` |
 
 ## Project Structure
 
@@ -167,4 +158,4 @@ sally-clicks/
 
 ## Licence
 
-MIT — do whatever you want, just don't blame me if it clicks something you didn't expect.
+MIT — do whatever you want
